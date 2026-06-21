@@ -165,7 +165,14 @@ input,button,select,textarea{font-size:16px!important;}
 
 	$html = str_replace( '</body>', $cycling_script . '</body>', $html );
 
-	echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	// Gzip the output so the 2.39 MB bundle transfers as ~500 KB.
+	if ( function_exists( 'ob_gzhandler' ) && ! ini_get( 'zlib.output_compression' ) ) {
+		ob_start( 'ob_gzhandler' );
+		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		ob_end_flush();
+	} else {
+		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	}
 	exit;
 }
 
