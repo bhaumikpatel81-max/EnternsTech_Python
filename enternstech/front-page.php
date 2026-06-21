@@ -14,11 +14,12 @@ while ( ob_get_level() ) {
 $bundled = get_template_directory() . '/static/index.html';
 
 if ( file_exists( $bundled ) ) {
-	// No caching — always serve the latest file
+	// No caching — bypass browser cache, WordPress cache, and LiteSpeed server cache.
 	header( 'Content-Type: text/html; charset=utf-8' );
 	header( 'Cache-Control: no-cache, no-store, must-revalidate' );
 	header( 'Pragma: no-cache' );
 	header( 'Expires: 0' );
+	header( 'X-LiteSpeed-Cache-Control: no-cache' ); // Bluehost/LiteSpeed bypass
 
 	$html = file_get_contents( $bundled );
 
@@ -41,76 +42,24 @@ if ( file_exists( $bundled ) ) {
 	}
 
 	// ── Stub Design-Canvas component methods called as globals ────────────────
-	// The DC bundle references closeAdmin/openAdmin as global functions during
-	// template evaluation before the component initialises its own methods.
 	$inject .= '<script>window.closeAdmin=function(){};window.openAdmin=function(){};</script>';
 
-	// ── Mobile + cycling fixes injected before </head> ─────────────────────────
+	// ── Base CSS: loading screen, dark bg, cross-browser basics ───────────────
 	$inject .= '
 <style>
-/* Hide the "Unpacking…" status text — users don't need to see this */
 #__bundler_loading{display:none!important;}
-/* Dark background during asset decompression so there's no beige flash */
-html,body{background:#05080F!important;}
+html,body{background:#05080F!important;overflow-x:hidden!important;}
 #__bundler_thumbnail{background:#05080F!important;}
-/* ── Cross-browser & mobile fixes ─────────────────────────── */
-html,body{overflow-x:hidden!important;max-width:100vw!important;}
-@supports not (backdrop-filter:blur(1px)){
-  .et-floatcard{background:rgba(12,20,38,.96)!important;}
-}
-@media(max-width:900px){
-  /* Prevent any element from exceeding viewport */
-  *{max-width:100vw;box-sizing:border-box;}
-  /* Tracks split-panel: stack vertically */
-  div[style*="grid-template-columns:1fr 1fr"],
-  div[style*="grid-template-columns: 1fr 1fr"]{
-    grid-template-columns:1fr!important;
-  }
-  /* Journey 5-col grid → 2 cols */
-  div[style*="grid-template-columns:repeat(5"]{
-    grid-template-columns:repeat(2,1fr)!important;
-  }
-  /* Features/cards 3-col → 1 col */
-  div[style*="grid-template-columns:repeat(3"]{
-    grid-template-columns:1fr!important;
-  }
-  /* Pricing 3-col → 1 col */
-  div[style*="repeat(3,1fr)"]{
-    grid-template-columns:1fr!important;
-  }
-  /* Hide orbital ring on small screens */
-  div[style*="width:300px"][style*="height:300px"]{display:none!important;}
-  /* Reposition float cards */
-  .et-floatcard[data-depth="1.5"]{
-    position:relative!important;top:auto!important;right:auto!important;
-    margin:0 0 16px!important;display:inline-block!important;
-  }
-  .et-floatcard[data-depth="2.4"]{display:none!important;}
-  /* Marquee strip: smaller text */
-  div[style*="etMarquee"] span{font-size:16px!important;}
-  /* Nav: hide middle links, keep logo + CTA */
-  nav a[style*="color:#9FB1CE"]{display:none!important;}
-}
-@media(max-width:480px){
-  /* Full-width buttons */
-  a[style*="padding:15px 28px"]{
-    width:100%!important;justify-content:center!important;display:flex!important;
-  }
-  /* Overflow-safe tables */
-  table{display:block;overflow-x:auto;width:100%;}
-  /* Sticky nav padding */
-  div[style*="position:fixed"][style*="z-index:1000"]{padding:10px 16px!important;}
-}
-/* iOS tap highlight & zoom fixes */
-*{-webkit-tap-highlight-color:transparent;}
+*{-webkit-tap-highlight-color:transparent;box-sizing:border-box;}
 input,button,select,textarea{font-size:16px!important;}
-/* Firefox scrollbar */
-*{scrollbar-width:thin;scrollbar-color:#22D3EE #0C1426;}
+@supports not (backdrop-filter:blur(1px)){
+  [style*="backdrop-filter"]{background:rgba(12,20,38,.96)!important;}
+}
 </style>';
 
 	$html = preg_replace( '#</head>#i', $inject . '</head>', $html, 1 );
 
-	// ── Orbit cycling script — waits for Design Canvas to render ───────────────
+	// ── Cycling + mobile fixes — runs after Design Canvas renders ─────────────
 	$cycling_script = '
 <script>
 (function(){
@@ -122,44 +71,80 @@ input,button,select,textarea{font-size:16px!important;}
     "Cybersecurity Analyst · 12 weeks",
     "Full Stack Developer · 10 weeks"
   ];
-  var idx=0;
+  var idx=0,cycleStarted=false,mobileFixed=false;
 
-  function findEl(){
-    /* Try by ID first (if Design Canvas preserved it) */
+  /* ── Find the placement badge text node ── */
+  function findPlacementEl(){
     var el=document.getElementById("et-placed-role");
-    if(el) return el;
-    /* Fallback: find by text content */
-    var divs=document.querySelectorAll("div");
-    for(var i=0;i<divs.length;i++){
-      var t=divs[i].textContent.trim();
-      if((t.indexOf("Data Scientist")>-1||t.indexOf("Java Developer")>-1)
-          && t.indexOf("weeks")>-1
-          && divs[i].children.length===0){
-        return divs[i];
+    if(el&&el.children.length===0) return el;
+    var all=document.querySelectorAll("span,div,p");
+    for(var i=0;i<all.length;i++){
+      var t=all[i].textContent.trim();
+      if(all[i].children.length===0&&t.indexOf("weeks")>-1&&
+         (t.indexOf("Scientist")>-1||t.indexOf("Developer")>-1||
+          t.indexOf("Engineer")>-1||t.indexOf("Analyst")>-1)){
+        return all[i];
       }
     }
     return null;
   }
 
+  /* ── Cycle the placement text ── */
   function startCycling(el){
+    if(cycleStarted)return;cycleStarted=true;
     setInterval(function(){
-      el.style.transition="opacity 0.45s ease";
-      el.style.opacity="0";
-      setTimeout(function(){
-        idx=(idx+1)%placements.length;
-        el.textContent=placements[idx];
-        el.style.opacity="1";
-      },450);
+      el.style.transition="opacity 0.4s";el.style.opacity="0";
+      setTimeout(function(){idx=(idx+1)%placements.length;el.textContent=placements[idx];el.style.opacity="1";},420);
     },3200);
   }
 
-  /* Poll until element exists (Design Canvas renders async) */
+  /* ── Mobile layout fixes applied via JS (more reliable than CSS attr selectors) ── */
+  function applyMobileFix(){
+    if(mobileFixed||window.innerWidth>900)return;mobileFixed=true;
+    var divs=document.querySelectorAll("div");
+    for(var i=0;i<divs.length;i++){
+      var s=divs[i].style;
+      if(!s)continue;
+      var gc=s.gridTemplateColumns||"";
+      /* Stack any 2-column split layout */
+      if(gc.indexOf("1fr 1fr")>-1||gc.indexOf("1fr 2fr")>-1||gc.indexOf("2fr 1fr")>-1||
+         gc.indexOf("1fr 3fr")>-1||gc.indexOf("3fr 1fr")>-1){
+        s.gridTemplateColumns="1fr";s.gap="32px";
+      }
+      /* 3-col → 1 col on mobile */
+      if(gc.indexOf("repeat(3")>-1){s.gridTemplateColumns="1fr";}
+      /* 5-col journey → 2 col */
+      if(gc.indexOf("repeat(5")>-1){s.gridTemplateColumns="repeat(2,1fr)";}
+      /* 4-col → 2 col */
+      if(gc.indexOf("repeat(4")>-1){s.gridTemplateColumns="repeat(2,1fr)";}
+      /* Clamp any element wider than viewport */
+      var w=s.width||"";
+      if(w&&parseInt(w)>window.innerWidth&&w.indexOf("%")===-1&&w.indexOf("vw")===-1){
+        s.width="100%";s.maxWidth="100vw";
+      }
+      /* Remove fixed positioning that causes overflow */
+      var pos=s.position||"";
+      var right=s.right||"";
+      if(pos==="absolute"&&right&&parseInt(right)<0){s.right="0";}
+    }
+    /* Force body to not overflow */
+    document.body.style.overflowX="hidden";
+    document.documentElement.style.overflowX="hidden";
+  }
+
+  /* ── Poll until DC renders (checks every 400ms, gives up at 25s) ── */
   var attempts=0;
   var poll=setInterval(function(){
-    var el=findEl();
-    if(el){clearInterval(poll);startCycling(el);}
-    if(++attempts>40){clearInterval(poll);} /* Give up after 20s */
-  },500);
+    attempts++;
+    var el=findPlacementEl();
+    if(el) startCycling(el);
+    applyMobileFix();
+    /* Check if DC finished rendering (thumbnail hidden = done) */
+    var thumb=document.getElementById("__bundler_thumbnail");
+    var dcDone=!thumb||thumb.style.display==="none"||getComputedStyle(thumb).display==="none";
+    if(dcDone&&el){clearInterval(poll);return;}
+    if(attempts>62){clearInterval(poll);}
+  },400);
 })();
 </script>';
 
