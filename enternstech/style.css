@@ -1,0 +1,59 @@
+/*
+Theme Name: EnternsTech
+Theme URI: https://www.enternstech.com
+Author: Enterns Tech
+Author URI: https://www.enternstech.com
+Description: Enterns Tech — IT Training & Placement. A modern dark-themed site (home, pricing, payment, partner registration) built on the Design Canvas reactive bundle and served full-screen via the front page. PayPal-ready.
+Version: 2.0.0
+Requires at least: 5.8
+Tested up to: 6.5
+Requires PHP: 7.4
+License: GNU General Public License v2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: enternstech
+Tags: dark, technology, education, corporate, full-width-template, custom-menu, one-page
+*/
+
+/*
+ * EnternsTech Design System
+ * Primary Accent : #22D3EE  (Cyan)
+ * Secondary Blue : #3BA4FF
+ * Background     : #05080F
+ * Surface        : #0C1426
+ * Text           : #ECF2FF
+ * Muted Text     : #6B7280
+ *
+ * NOTE: The main site styles live inside the bundled Design Canvas HTML
+ * (static/index.html). This file exists for WordPress theme identification
+ * and provides fallback styling for the header/footer used on inner pages.
+ */
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+	--cyan:  #22D3EE;
+	--blue:  #3BA4FF;
+	--bg:    #05080F;
+	--surf:  #0C1426;
+	--text:  #ECF2FF;
+	--muted: #6B7280;
+	--bdr:   rgba(34, 211, 238, 0.12);
+}
+body {
+	background: var(--bg);
+	color: var(--text);
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+	line-height: 1.6;
+}
+a { color: var(--cyan); text-decoration: none; }
+a:hover { color: var(--blue); }
+.site-header {
+	position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+	display: flex; align-items: center; gap: 1rem;
+	padding: 0.875rem 2rem;
+	background: rgba(5,8,15,0.92);
+	backdrop-filter: blur(12px);
+	border-bottom: 1px solid var(--bdr);
+}
+.site-logo { color: var(--cyan); font-size: 1.25rem; font-weight: 700; }
+.site-logo a { color: inherit; }
+.site-main { padding-top: 72px; min-height: 100vh; }
