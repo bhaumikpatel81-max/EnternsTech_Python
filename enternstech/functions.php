@@ -47,6 +47,19 @@ function enternstech_scripts() {
 		array(),
 		$ver
 	);
+
+	// Hero interactivity — only needed on the front page.
+	// Loaded in the footer so it never blocks render.
+	if ( is_front_page() ) {
+		$hero_path = get_template_directory() . '/assets/js/hero.js';
+		wp_enqueue_script(
+			'enternstech-hero',
+			get_template_directory_uri() . '/assets/js/hero.js',
+			array(),
+			file_exists( $hero_path ) ? filemtime( $hero_path ) : ENTERNSTECH_VERSION,
+			true
+		);
+	}
 }
 add_action( 'wp_enqueue_scripts', 'enternstech_scripts' );
 
