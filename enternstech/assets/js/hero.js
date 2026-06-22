@@ -410,6 +410,18 @@
     });
   }
 
+  /* ── admin login modal ───────────────────────────────────────────────── */
+  function initAdminModal() {
+    var modal = $('#et-admin-modal');
+    if (!modal) return;
+    function open()  { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+    function close() { modal.style.display = 'none';  document.body.style.overflow = ''; }
+    $$('[data-open-admin]').forEach(function (el)  { on(el, 'click', open); });
+    $$('[data-close-admin]').forEach(function (el) { on(el, 'click', close); });
+    on(modal, 'click', function (e) { if (e.target === modal) close(); });
+    on(document, 'keydown', function (e) { if (e.key === 'Escape') close(); });
+  }
+
   /* ── recruiter network canvas ────────────────────────────────────────── */
   function initNetCanvas() {
     var cv = $('#et-net-canvas');
@@ -500,6 +512,7 @@
     initEnrolModal();
     initContactForm();
     initPartnerModal();
+    initAdminModal();
     if (!REDUCED) {
       initPointer();
       initCursor();

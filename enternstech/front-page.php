@@ -1029,7 +1029,7 @@ footer{background:rgba(0,0,0,.6);border-top:1px solid var(--border);padding:60px
       <ul>
         <li><a href="mailto:info@enternstech.com">info@enternstech.com</a></li>
         <li><span data-open-partner>Partner with Us</span></li>
-        <li><a href="/admin-portal/" style="color:var(--muted);font-size:.78rem;">Admin login</a></li>
+        <li><span data-open-admin style="color:var(--muted);font-size:.78rem;cursor:pointer;">Admin login</span></li>
       </ul>
     </div>
   </div>
@@ -1125,6 +1125,21 @@ footer{background:rgba(0,0,0,.6);border-top:1px solid var(--border);padding:60px
         Contact us to enrol &rarr;
       </button>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ ADMIN MODAL ═══════════════════ -->
+<div id="et-admin-modal" class="et-modal-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="et-admin-title">
+  <div class="et-modal-box">
+    <button class="et-modal-close" data-close-admin aria-label="Close">&times;</button>
+    <div class="et-section-label" style="margin-bottom:.5rem;">Internal access</div>
+    <h2 id="et-admin-title" style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:700;margin-bottom:.75rem;">Admin Portal</h2>
+    <p style="font-size:.85rem;color:#9FB1CE;line-height:1.6;margin-bottom:1.5rem;">
+      Access the admin portal to manage revenue entries, pricing, and site content.
+      Authentication is required once you reach the portal.
+    </p>
+    <a href="/admin-portal/" class="et-btn-primary" style="width:100%;justify-content:center;">Go to Admin Portal &rarr;</a>
+    <button class="et-btn-outline" data-close-admin style="width:100%;margin-top:.75rem;justify-content:center;">Cancel</button>
   </div>
 </div>
 

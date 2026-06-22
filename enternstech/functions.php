@@ -302,3 +302,19 @@ function enternstech_paypal_front_config() {
 	<?php
 }
 add_action( 'wp_head', 'enternstech_paypal_front_config' );
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Homepage safeguard — forces front-page.php regardless of Settings → Reading
+// or any custom Page template, so a stray WP Page can never hijack the homepage.
+// Fires at priority 99 (after all other template filters). Does not affect
+// REST routes, admin, or any non-front-page request.
+// ──────────────────────────────────────────────────────────────────────────────
+add_filter( 'template_include', function( $template ) {
+	if ( is_front_page() ) {
+		$fp = locate_template( 'front-page.php' );
+		if ( $fp ) {
+			return $fp;
+		}
+	}
+	return $template;
+}, 99 );
