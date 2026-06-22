@@ -56,7 +56,7 @@ jobs:
           protocol: ftp
           port: 21
           local-dir:  ./enternstech/
-          server-dir: /public_html/wp-content/themes/enternstech/
+          server-dir: /public_html/wp-content/themes/enternstech-theme/
           dangerous-clean-slate: false
           exclude: |
             **/.git*
@@ -83,11 +83,11 @@ jobs:
           echo "  Log into Bluehost → File Manager → public_html and DELETE:"
           echo ""
           echo "  FILE:"
-          echo "    public_html/wp-content/themes/enternstech/static/index.html"
+          echo "    public_html/wp-content/themes/enternstech-theme/static/index.html"
           echo ""
           echo "  FOLDERS (delete entire folder and all contents):"
-          echo "    public_html/wp-content/themes/enternstech/static/"
-          echo "    public_html/wp-content/themes/enternstech/source/"
+          echo "    public_html/wp-content/themes/enternstech-theme/static/"
+          echo "    public_html/wp-content/themes/enternstech-theme/source/"
           echo ""
           echo "  After deleting: clear WP Fastest Cache, clear Bluehost"
           echo "  hosting cache, then test the homepage in an incognito window."
