@@ -51,6 +51,7 @@ a:hover { color: var(--blue); }
 	display: flex; align-items: center; gap: 1rem;
 	padding: 0.875rem 2rem;
 	background: rgba(5,8,15,0.92);
+	-webkit-backdrop-filter: blur(12px);
 	backdrop-filter: blur(12px);
 	border-bottom: 1px solid var(--bdr);
 }
