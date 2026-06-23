@@ -3,6 +3,7 @@
   'use strict';
 
   var D          = window.ET_DATA    || {};
+  var ENP        = window.ENP_DATA   || {};
   var PLACEMENTS = D.placements      || [];
   var TRACKS     = D.tracks          || [];
   var REDUCED    = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
@@ -284,62 +285,146 @@
     if (domBtn)  on(domBtn,  'click', function () { show('dom'); });
   }
 
-  /* ── enrol modal (PayPal or contact fallback) ────────────────────────── */
+  /* ── enrol modal (Razorpay or contact fallback) ─────────────────────── */
   function initEnrolModal() {
-    var modal     = $('#et-enrol-modal');
-    var closeBtn  = $('#et-enrol-close');
-    var planName  = $('#et-enrol-plan');
-    var planPrice = $('#et-enrol-price');
-    var ppWrap    = $('#et-paypal-container');
-    var fallback  = $('#et-enrol-fallback');
+    var modal      = $('#et-enrol-modal');
+    var closeBtn   = $('#et-enrol-close');
+    var planName   = $('#et-enrol-plan');
+    var planPrice  = $('#et-enrol-price');
+    var enrolForm  = $('#et-enrol-form');
+    var fallback   = $('#et-enrol-fallback');
+    var successDiv = $('#et-enrol-success');
+    var emailInput = $('#et-enrol-email');
+    var payBtn     = $('#et-rzp-pay-btn');
+    var payErr     = $('#et-enrol-pay-err');
+    var portalLink = $('#et-enrol-portal-link');
 
     if (!modal) return;
 
-    function close() { modal.style.display = 'none'; document.body.style.overflow = ''; }
+    var currentPlanId = '';
 
-    function openModal(name, price) {
+    function resetModal() {
+      if (payErr)     { payErr.textContent = ''; payErr.style.display = 'none'; }
+      if (emailInput)   emailInput.value = '';
+      if (enrolForm)    enrolForm.style.display  = ENP.rzp_configured ? '' : 'none';
+      if (fallback)     fallback.style.display   = ENP.rzp_configured ? 'none' : '';
+      if (successDiv)   successDiv.style.display = 'none';
+      if (payBtn)     { payBtn.disabled = false; payBtn.textContent = 'Pay with Razorpay →'; }
+    }
+
+    function close() {
+      modal.style.display = 'none';
+      document.body.style.overflow = '';
+      resetModal();
+    }
+
+    function openModal(name, price, planId) {
+      currentPlanId = planId || '';
       if (planName)  planName.textContent  = name;
       if (planPrice) planPrice.textContent = price;
-      modal.style.display = 'flex'; document.body.style.overflow = 'hidden';
-
-      var cfg = window.ENTERNSTECH_PAYPAL;
-      if (ppWrap && cfg && cfg.clientId && window.enternsPayPal && window.enternsPayPal.Buttons) {
-        ppWrap.innerHTML = '';
-        if (fallback) fallback.style.display = 'none';
-        var amt = parseFloat((price || '').replace(/[^0-9.]/g, '')) || 0;
-        window.enternsPayPal.Buttons({
-          createOrder: function () {
-            return fetch(cfg.createUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ plan: name, amount: amt })
-            }).then(function (r) { return r.json(); }).then(function (d) { return d.id; });
-          },
-          onApprove: function (data) {
-            return fetch(cfg.captureUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ orderID: data.orderID })
-            }).then(function (r) { return r.json(); }).then(function () {
-              if (ppWrap) ppWrap.innerHTML = '<div style="text-align:center;padding:32px 0;color:#5BE89A;font-family:Space Grotesk,sans-serif;font-size:22px;font-weight:700;">Payment successful! We will contact you shortly.</div>';
-            });
-          }
-        }).render('#et-paypal-container');
-      } else {
-        if (ppWrap)   ppWrap.innerHTML = '';
-        if (fallback) fallback.style.display = '';
-      }
+      resetModal();
+      modal.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
     }
 
     if (closeBtn) on(closeBtn, 'click', close);
     on(modal, 'click', function (e) { if (e.target === modal) close(); });
     on(document, 'keydown', function (e) { if (e.key === 'Escape') close(); });
 
+    // ── Razorpay payment flow ─────────────────────────────────────────────
+    if (payBtn) on(payBtn, 'click', function () {
+      var email = emailInput ? emailInput.value.trim() : '';
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        if (payErr) { payErr.textContent = 'Please enter a valid email address.'; payErr.style.display = ''; }
+        return;
+      }
+      if (payErr) payErr.style.display = 'none';
+      payBtn.disabled    = true;
+      payBtn.textContent = 'Creating order…';
+
+      var body = new FormData();
+      body.append('action',   'enp_create_razorpay_order');
+      body.append('nonce',    ENP.nonce || '');
+      body.append('plan_id',  currentPlanId);
+      body.append('email',    email);
+
+      fetch(ENP.ajax_url || '/wp-admin/admin-ajax.php', { method: 'POST', body: body })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!data.success) {
+            payBtn.disabled = false;
+            payBtn.textContent = 'Pay with Razorpay →';
+            if (payErr) { payErr.textContent = data.data || 'Payment error. Please try again.'; payErr.style.display = ''; }
+            return;
+          }
+          var d = data.data;
+          var rzp = new Razorpay({
+            key:         d.key_id,
+            amount:      d.amount,
+            currency:    d.currency,
+            order_id:    d.order_id,
+            name:        'Enterns Tech',
+            description: planName ? planName.textContent : 'Enrolment',
+            prefill:     { email: email },
+            theme:       { color: '#22D3EE' },
+            handler: function (resp) {
+              // Verify server-side before trusting the result.
+              var vBody = new FormData();
+              vBody.append('action',              'enp_verify_razorpay_payment');
+              vBody.append('nonce',               ENP.nonce || '');
+              vBody.append('razorpay_order_id',   resp.razorpay_order_id);
+              vBody.append('razorpay_payment_id', resp.razorpay_payment_id);
+              vBody.append('razorpay_signature',  resp.razorpay_signature);
+              vBody.append('payment_id',          d.payment_id);
+              vBody.append('email',               email);
+              fetch(ENP.ajax_url || '/wp-admin/admin-ajax.php', { method: 'POST', body: vBody })
+                .then(function (r) { return r.json(); })
+                .then(function (vdata) {
+                  if (vdata.success) {
+                    if (enrolForm)  enrolForm.style.display  = 'none';
+                    if (successDiv) successDiv.style.display = '';
+                    if (portalLink && vdata.data && vdata.data.student_url) {
+                      portalLink.href = vdata.data.student_url;
+                    }
+                  } else {
+                    payBtn.disabled = false;
+                    payBtn.textContent = 'Pay with Razorpay →';
+                    if (payErr) {
+                      payErr.textContent = vdata.data || 'Verification failed. Please contact support.';
+                      payErr.style.display = '';
+                    }
+                  }
+                })
+                .catch(function () {
+                  if (payErr) {
+                    payErr.textContent = 'Network error during verification. Please contact support.';
+                    payErr.style.display = '';
+                  }
+                });
+            },
+            modal: {
+              ondismiss: function () {
+                payBtn.disabled = false;
+                payBtn.textContent = 'Pay with Razorpay →';
+                if (payErr) { payErr.textContent = 'Payment cancelled.'; payErr.style.display = ''; }
+              }
+            }
+          });
+          rzp.open();
+        })
+        .catch(function () {
+          payBtn.disabled = false;
+          payBtn.textContent = 'Pay with Razorpay →';
+          if (payErr) { payErr.textContent = 'Network error. Please try again.'; payErr.style.display = ''; }
+        });
+    });
+
     $$('[data-plan-btn],[data-combo-btn]').forEach(function (btn) {
       on(btn, 'click', function () {
-        var name  = btn.getAttribute('data-plan-name') || 'Selected Plan';
-        var price = btn.getAttribute('data-price') || btn.getAttribute('data-price-intl') || 'Contact us';
-        openModal(name, price);
+        var name   = btn.getAttribute('data-plan-name') || 'Selected Plan';
+        var price  = btn.getAttribute('data-price') || btn.getAttribute('data-price-dom') || 'Contact us';
+        var planId = btn.getAttribute('data-plan-id') || '';
+        openModal(name, price, planId);
       });
     });
   }

@@ -281,6 +281,43 @@ if ($logged_in && $action === 'edit_mentor') {
     header('Location: ?section=mentors&updated=1'); exit;
 }
 
+// Manual mark student paid (CSRF-protected, runs enp_activate_student via WP)
+if ($logged_in && $action === 'mark_student_paid') {
+    if (!isset($_SESSION['enp_csrf']) || !hash_equals($_SESSION['enp_csrf'], $_POST['csrf'] ?? '')) {
+        http_response_code(403); die('CSRF mismatch.');
+    }
+    if (!function_exists('enp_activate_student')) {
+        header('Location: ?section=payments&err=' . urlencode('Plugin function not available. Is the enterns-portal plugin active?')); exit;
+    }
+    $email   = isset($_POST['email'])   ? filter_var(trim($_POST['email']),   FILTER_VALIDATE_EMAIL) : false;
+    $plan_id = isset($_POST['plan_id']) ? trim(strip_tags($_POST['plan_id'])) : '';
+    $amount  = isset($_POST['amount'])  ? max(0.0, (float) $_POST['amount'])  : 0.0;
+    $valid_plans = ['basic', 'elite', 'premium', 'accelerator', 'starter'];
+
+    if (!$email) {
+        header('Location: ?section=payments&err=' . urlencode('Invalid email address.')); exit;
+    }
+    if (!in_array($plan_id, $valid_plans, true)) {
+        header('Location: ?section=payments&err=' . urlencode('Invalid plan selected.')); exit;
+    }
+    if ($amount <= 0.0) {
+        header('Location: ?section=payments&err=' . urlencode('Amount must be greater than zero.')); exit;
+    }
+
+    $db = get_db(); $p = DB_PREFIX;
+
+    // Insert manual payment row; activation will flip it to 'paid'.
+    $db->prepare("INSERT INTO `{$p}enp_payments` (email, plan_id, amount, currency, gateway, status) VALUES (?, ?, ?, 'INR', 'manual', 'created')")
+       ->execute([$email, $plan_id, $amount]);
+    $payment_id = (int) $db->lastInsertId();
+
+    $result = enp_activate_student((string)$email, $plan_id, $payment_id);
+    if (is_wp_error($result)) {
+        header('Location: ?section=payments&err=' . urlencode($result->get_error_message())); exit;
+    }
+    header('Location: ?section=payments&paid=1'); exit;
+}
+
 // ── Dashboard data ────────────────────────────────────────────────────────────
 $stats = [];
 $monthly_labels  = [];
@@ -1078,33 +1115,92 @@ HTML;
   <?php elseif ($section === 'payments'): ?>
   <!-- ── PORTAL PAYMENTS ────────────────────────────────────── -->
 
-    <div class="section-title">Portal Payments</div>
-    <p style="color:var(--muted);font-size:.85rem;margin-bottom:1.25rem;">
-      Razorpay payment integration and manual "mark paid" are built in Phase 4.
+    <?php if (isset($_GET['paid'])): ?>
+      <div class="success-banner">Student activated — set-password email sent (if new account).</div>
+    <?php elseif (isset($_GET['err'])): ?>
+      <div class="success-banner" style="background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.25);color:var(--red)">Error: <?= h($_GET['err']) ?></div>
+    <?php endif; ?>
+
+    <!-- Manual mark-paid form -->
+    <div class="section-title">Mark Student as Paid</div>
+    <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem;">
+      Use this to activate a student who paid offline, via bank transfer, or any method outside Razorpay.
+      A set-password email is sent only if the student does not yet have a WordPress account.
     </p>
+    <div class="form-card">
+      <form method="POST">
+        <input type="hidden" name="action" value="mark_student_paid">
+        <input type="hidden" name="csrf"   value="<?= h($csrf) ?>">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Student Email *</label>
+            <input type="email" name="email" placeholder="student@example.com" required>
+          </div>
+          <div class="form-group">
+            <label>Plan *</label>
+            <select name="plan_id" required>
+              <option value="">— select plan —</option>
+              <option value="basic">Basic Plan — ₹1,50,000</option>
+              <option value="elite">Elite Plan — ₹2,50,000</option>
+              <option value="premium">Premium Plan — ₹3,50,000</option>
+              <option value="accelerator">Career Accelerator Combo — ₹5,50,000</option>
+              <option value="starter">Career Starter Combo — ₹3,75,000</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Amount Received (₹) *</label>
+            <input type="number" name="amount" step="0.01" min="1" placeholder="e.g. 150000" required>
+          </div>
+        </div>
+        <button class="btn-add" type="submit"
+          onclick="return confirm('Activate this student and send a set-password email?')">
+          Activate Student &rarr;
+        </button>
+      </form>
+    </div>
+
+    <!-- Payments table -->
+    <?php
+    $portal_payments = [];
+    try {
+        $portal_payments = $db->query(
+            "SELECT p.*, s.full_name AS student_name
+             FROM `{$p}enp_payments` p
+             LEFT JOIN `{$p}enp_students` s ON p.student_id = s.id
+             ORDER BY p.created_at DESC LIMIT 100"
+        )->fetchAll();
+    } catch (PDOException $e) {}
+    ?>
+    <div class="section-title">All Portal Payments <span><?= count($portal_payments) ?></span></div>
     <div class="card">
       <div class="table-wrap">
-        <?php
-        $portal_payments = [];
-        try {
-            $portal_payments = $db->query("SELECT * FROM `{$p}enp_payments` ORDER BY created_at DESC LIMIT 100")->fetchAll();
-        } catch (PDOException $e) {}
-        ?>
         <table>
-          <thead><tr><th>Date</th><th>Email</th><th>Plan</th><th>Amount</th><th>Gateway</th><th>Gateway ID</th><th>Status</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Date</th><th>Email</th><th>Student</th><th>Plan</th>
+              <th>Amount</th><th>Gateway</th><th>Ref / Payment ID</th><th>Status</th>
+            </tr>
+          </thead>
           <tbody>
           <?php if ($portal_payments): foreach ($portal_payments as $pay): ?>
             <tr>
               <td style="white-space:nowrap"><?= h(date('d M Y', strtotime($pay['created_at']))) ?></td>
               <td style="font-size:.82rem"><?= h($pay['email']) ?></td>
+              <td style="font-size:.82rem"><?= $pay['student_name'] ? h($pay['student_name']) : '<span style="color:var(--muted)">—</span>' ?></td>
               <td><span class="badge badge-cyan"><?= h(strtoupper($pay['plan_id'])) ?></span></td>
               <td class="amount">&#8377;<?= number_format((float)$pay['amount'], 0) ?></td>
-              <td style="font-size:.8rem"><?= h($pay['gateway']) ?></td>
-              <td style="font-size:.76rem;color:var(--muted);font-family:monospace"><?= h($pay['gateway_payment_id'] ?: $pay['gateway_order_id'] ?: '—') ?></td>
-              <td><span class="badge <?= $pay['status']==='paid' ? 'badge-green' : 'badge-gold' ?>"><?= h($pay['status']) ?></span></td>
+              <td style="font-size:.8rem;color:var(--muted)"><?= h($pay['gateway']) ?></td>
+              <td style="font-size:.76rem;color:var(--muted);font-family:monospace;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                <?= h($pay['gateway_payment_id'] ?: $pay['gateway_order_id'] ?: '—') ?>
+              </td>
+              <td>
+                <span class="badge <?= $pay['status']==='paid' ? 'badge-green' : ($pay['status']==='created' ? 'badge-gold' : 'badge-red') ?>">
+                  <?= h($pay['status']) ?>
+                </span>
+              </td>
             </tr>
           <?php endforeach; else: ?>
-            <tr class="empty-row"><td colspan="7">No portal payments yet. Razorpay integration is built in Phase 4.</td></tr>
+            <tr class="empty-row"><td colspan="8">No portal payments yet. Use the form above to manually activate a student, or share the enrolment page for Razorpay payments.</td></tr>
           <?php endif; ?>
           </tbody>
         </table>

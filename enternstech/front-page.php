@@ -826,6 +826,7 @@ footer{background:rgba(0,0,0,.6);border-top:1px solid var(--border);padding:60px
         </ul>
 
         <button class="et-plan-btn" data-plan-btn
+          data-plan-id="<?php echo esc_attr( $plan['id'] ); ?>"
           data-plan-name="<?php echo esc_attr( $plan['name'] ); ?>"
           data-price-intl="<?php echo esc_attr( $plan['priceIntl'] ); ?>"
           data-price-dom="<?php echo esc_attr( $plan['priceDom'] ); ?>"
@@ -849,6 +850,7 @@ footer{background:rgba(0,0,0,.6);border-top:1px solid var(--border);padding:60px
             <div data-price-dom style="font-family:'Space Grotesk',sans-serif;font-size:1.6rem;font-weight:800;color:var(--cyan);display:none;"><?php echo esc_html( $combo['priceDom'] ); ?></div>
           </div>
           <button class="et-plan-btn" data-combo-btn style="width:auto;padding:10px 20px;"
+            data-plan-id="<?php echo esc_attr( $combo['id'] ); ?>"
             data-plan-name="<?php echo esc_attr( $combo['name'] ); ?>"
             data-price-intl="<?php echo esc_attr( $combo['priceIntl'] ); ?>"
             data-price-dom="<?php echo esc_attr( $combo['priceDom'] ); ?>"
@@ -1113,17 +1115,32 @@ footer{background:rgba(0,0,0,.6);border-top:1px solid var(--border);padding:60px
     <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:700;margin-bottom:.25rem;" id="et-enrol-plan">Selected Plan</h2>
     <div style="font-family:'Space Grotesk',sans-serif;font-size:2rem;font-weight:800;color:var(--cyan);margin-bottom:1.5rem;" id="et-enrol-price"></div>
 
-    <!-- PayPal renders here when client ID is configured -->
-    <div id="et-paypal-container" style="min-height:50px;margin-bottom:1rem;"></div>
+    <!-- Razorpay payment form — shown when gateway is configured -->
+    <div id="et-enrol-form" style="<?php echo ( function_exists( 'enp_razorpay_configured' ) && enp_razorpay_configured() ) ? '' : 'display:none'; ?>">
+      <div class="et-form-group" style="margin-bottom:1rem">
+        <label for="et-enrol-email" style="display:block;font-size:.8rem;color:#9FB1CE;font-weight:500;margin-bottom:.4rem">Email address *</label>
+        <input id="et-enrol-email" type="email" placeholder="your@email.com" autocomplete="email">
+      </div>
+      <div id="et-enrol-pay-err" style="display:none;color:#FF8A80;font-size:.82rem;margin-bottom:.75rem"></div>
+      <button id="et-rzp-pay-btn" class="et-btn-primary" style="width:100%;justify-content:center">Pay with Razorpay &rarr;</button>
+    </div>
 
-    <!-- fallback when PayPal not configured -->
-    <div id="et-enrol-fallback">
+    <!-- Fallback when Razorpay not configured -->
+    <div id="et-enrol-fallback" style="<?php echo ( function_exists( 'enp_razorpay_configured' ) && enp_razorpay_configured() ) ? 'display:none' : ''; ?>">
       <p style="font-size:.85rem;color:#9FB1CE;margin-bottom:1.25rem;">
         To complete your enrolment, send us a message and our team will guide you through the payment process within 1 business day.
       </p>
       <button class="et-btn-primary" onclick="document.getElementById('et-enrol-modal').style.display='none';document.body.style.overflow='';document.getElementById('et-cf-name')&&document.getElementById('et-cf-name').focus();window.scrollTo({top:document.getElementById('contact').getBoundingClientRect().top+window.scrollY-80,behavior:'smooth'});">
         Contact us to enrol &rarr;
       </button>
+    </div>
+
+    <!-- Success state — shown after payment verified -->
+    <div id="et-enrol-success" style="display:none;padding:24px;text-align:center">
+      <div style="font-size:2.5rem;color:var(--green);margin-bottom:.5rem">&#10003;</div>
+      <div style="font-weight:700;font-family:'Space Grotesk',sans-serif;font-size:1.1rem;margin-bottom:.4rem">Payment Confirmed!</div>
+      <p style="font-size:.85rem;color:#9FB1CE;margin-bottom:1.25rem">Check your email for the set-password link to access your student portal.</p>
+      <a id="et-enrol-portal-link" href="/student/" class="et-btn-primary" style="display:inline-flex;justify-content:center">Go to Student Portal &rarr;</a>
     </div>
   </div>
 </div>
@@ -1147,6 +1164,16 @@ footer{background:rgba(0,0,0,.6);border-top:1px solid var(--border);padding:60px
 <script>
 window.ET_DATA = <?php echo $et_js_data; // phpcs:ignore WordPress.Security.EscapeOutput ?>;
 </script>
+<script>
+window.ENP_DATA = <?php echo wp_json_encode( array(
+	'ajax_url'       => admin_url( 'admin-ajax.php' ),
+	'nonce'          => wp_create_nonce( 'enp_razorpay' ),
+	'rzp_configured' => function_exists( 'enp_razorpay_configured' ) && enp_razorpay_configured(),
+) ); ?>;
+</script>
+<?php if ( function_exists( 'enp_razorpay_configured' ) && enp_razorpay_configured() ) : ?>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<?php endif; ?>
 <?php wp_footer(); ?>
 </body>
 </html>
