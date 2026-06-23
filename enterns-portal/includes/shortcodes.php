@@ -15,7 +15,7 @@ function enp_maybe_enqueue_assets() {
 	if ( ! is_a( $post, 'WP_Post' ) ) {
 		return;
 	}
-	$tags = array( 'enp_admin', 'enp_mentor', 'enp_student', 'enp_partner_form' );
+	$tags = array( 'enp_admin', 'enp_mentor', 'enp_student', 'enp_partner_form', 'enp_psychometric' );
 	$found = false;
 	foreach ( $tags as $tag ) {
 		if ( has_shortcode( $post->post_content, $tag ) ) {

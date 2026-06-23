@@ -11,6 +11,10 @@ function enp_activate() {
 	enp_create_tables();
 	enp_create_roles();
 	enp_create_pages();
+	// Psychometric module.
+	enp_psy_create_tables();
+	enp_psy_seed_items();
+	enp_psy_create_page();
 	flush_rewrite_rules();
 }
 

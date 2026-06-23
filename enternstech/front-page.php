@@ -482,6 +482,51 @@ footer{background:rgba(0,0,0,.6);border-top:1px solid var(--border);padding:60px
 @media(max-width:480px){.et-form-row{grid-template-columns:1fr;}}
 .et-form-group{display:flex;flex-direction:column;gap:.4rem;}
 .et-form-group label{font-size:.8rem;color:#9FB1CE;font-weight:500;}
+/* ── roadmap outer ── */
+.et-roadmap-outer{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:start;}
+/* ═══════════════════════════════════════════════════════════════════
+   MOBILE / CROSS-BROWSER RESPONSIVE FIXES
+   All grid layouts designed for desktop must collapse on narrow screens.
+═══════════════════════════════════════════════════════════════════ */
+/* 860 px — hide orbital, stack hero, open nav hamburger (already in nav rule above) */
+@media(max-width:860px){
+  #et-hero-scene{grid-template-columns:1fr;gap:2.5rem;}
+  .et-orbital-wrap{display:none;}
+  .et-floatcard{display:none!important;}
+}
+/* 700 px — collapse remaining 2-col grids */
+@media(max-width:700px){
+  .et-roadmap-outer{grid-template-columns:1fr;gap:2.5rem;}
+  .et-journey-grid{grid-template-columns:1fr 1fr;}
+  .et-referral-card{padding:36px 24px;}
+  .et-metrics-grid{gap:1rem;}
+  .et-metric-card{padding:20px 16px;}
+  .et-metric-num{font-size:2rem;}
+  .et-why-grid{gap:2rem;}
+}
+/* 520 px — single-column journey, smaller paddings */
+@media(max-width:520px){
+  .et-journey-grid{grid-template-columns:1fr;}
+  section{padding:56px 4vw;}
+  #et-hero{padding:84px 4vw 48px;}
+  .et-hero-h1{font-size:clamp(1.8rem,8.5vw,2.6rem);}
+  .et-hero-btns{flex-direction:column;}
+  .et-hero-btns .et-btn-primary,
+  .et-hero-btns .et-btn-outline{width:100%;justify-content:center;}
+  .et-hero-stats{gap:1.25rem;}
+  .et-hero-sub{font-size:.95rem;}
+  .et-referral-card{padding:28px 16px;}
+  .et-modal-box{padding:28px 20px;}
+  #et-plans-grid{grid-template-columns:1fr;}
+  #et-combos-grid{grid-template-columns:1fr;}
+  .et-audience-btns{flex-direction:column;}
+  .et-aud-btn{min-width:unset;max-width:unset;width:100%;}
+  .et-footer-grid{gap:1.5rem;}
+}
+/* iOS safari: prevent zoom on input focus */
+@supports(-webkit-touch-callout:none){
+  input,select,textarea,button{font-size:16px!important;}
+}
 </style>
 </head>
 <body <?php body_class(); ?>>
@@ -723,7 +768,7 @@ footer{background:rgba(0,0,0,.6);border-top:1px solid var(--border);padding:60px
 
 <!-- ═══════════════════ ROADMAP ═══════════════════ -->
 <section id="roadmap">
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:start;">
+  <div class="et-roadmap-outer">
     <div data-reveal>
       <div class="et-section-label">The process</div>
       <h2 class="et-section-h2">Your <span>7-step</span> roadmap to employment</h2>

@@ -373,6 +373,83 @@ if ($logged_in && $action === 'approve_mentor_change') {
     header('Location: ?section=requests&approved_change=1'); exit;
 }
 
+// ── Psychometric: generate assessment link ────────────────────────────────────
+if ($logged_in && $action === 'generate_psy_link') {
+    if (!isset($_SESSION['enp_csrf']) || !hash_equals($_SESSION['enp_csrf'], $_POST['csrf'] ?? '')) {
+        http_response_code(403); die('CSRF mismatch.');
+    }
+    if (!function_exists('enp_psy_generate_token') || !function_exists('enp_psy_token_expiry')) {
+        header('Location: ?section=assessments&err=' . urlencode('Psychometric module not loaded.')); exit;
+    }
+    $cand_name  = substr(strip_tags($_POST['candidate_name']  ?? ''), 0, 200);
+    $cand_email = filter_var(trim($_POST['candidate_email'] ?? ''), FILTER_VALIDATE_EMAIL);
+    $cand_phone = substr(strip_tags($_POST['candidate_phone'] ?? ''), 0, 30);
+    $region     = strtoupper(trim(strip_tags($_POST['region']          ?? 'UK')));
+    $edu_level  = max(1, min(4, intval($_POST['education_level'] ?? 0)));
+    $field      = strtoupper(trim(strip_tags($_POST['field']           ?? '')));
+    $pay_ref    = substr(strip_tags($_POST['payment_ref']      ?? ''), 0, 200);
+
+    $valid_regions = ['UK','US','CA','IN','AUTO'];
+    $valid_fields  = ['IT','DATA_AI','BUSINESS','HR','FINANCE','MARKETING','INFRA','INFOSEC','HONORS'];
+
+    if (!in_array($region, $valid_regions, true)) {
+        header('Location: ?section=assessments&err=' . urlencode('Invalid region.')); exit;
+    }
+    if (!in_array($field, $valid_fields, true)) {
+        header('Location: ?section=assessments&err=' . urlencode('Please select a field.')); exit;
+    }
+    if ($edu_level < 1) {
+        header('Location: ?section=assessments&err=' . urlencode('Please select an education level.')); exit;
+    }
+
+    $db = get_db(); $p = DB_PREFIX;
+    $defaulted     = 0;
+    $region_source = 'admin';
+    if ($region === 'AUTO') {
+        $region = 'UK'; $region_source = 'auto_default'; $defaulted = 1;
+    }
+
+    $token   = enp_psy_generate_token();
+    $expiry  = enp_psy_token_expiry();
+    $created_by = function_exists('get_current_user_id') ? get_current_user_id() : null;
+
+    $db->prepare("INSERT INTO `{$p}psy_assessments`
+        (token, candidate_name, candidate_email, candidate_phone, region, region_source,
+         education_level, field, created_by, payment_ref, status, expires_at, defaulted)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
+       ->execute([$token, $cand_name, $cand_email ?: '', $cand_phone, $region, $region_source,
+                  $edu_level, $field, $created_by, $pay_ref, 'pending', $expiry, $defaulted]);
+
+    header('Location: ?section=assessments&generated=1&tok=' . urlencode($token)); exit;
+}
+
+// ── Psychometric: save Razorpay auto-trigger setting ─────────────────────────
+if ($logged_in && $action === 'save_psy_rzp_toggle') {
+    if (!isset($_SESSION['enp_csrf']) || !hash_equals($_SESSION['enp_csrf'], $_POST['csrf'] ?? '')) {
+        http_response_code(403); die('CSRF mismatch.');
+    }
+    if (!function_exists('update_option')) {
+        header('Location: ?section=assessments&tab=settings&err=' . urlencode('WordPress not loaded.')); exit;
+    }
+    $enabled = $_POST['rzp_plans'] ?? [];
+    $valid   = ['basic','elite','premium','accelerator','starter'];
+    $clean   = array_values(array_filter($enabled, fn($v) => in_array($v, $valid, true)));
+    update_option('enp_psy_rzp_plans', $clean);
+    header('Location: ?section=assessments&tab=settings&saved=1'); exit;
+}
+
+// ── Psychometric: save recommendation ────────────────────────────────────────
+if ($logged_in && $action === 'save_psy_recommendation') {
+    if (!isset($_SESSION['enp_csrf']) || !hash_equals($_SESSION['enp_csrf'], $_POST['csrf'] ?? '')) {
+        http_response_code(403); die('CSRF mismatch.');
+    }
+    $ass_id = intval($_POST['assessment_id'] ?? 0);
+    $rec    = substr(strip_tags($_POST['recommendation'] ?? ''), 0, 5000);
+    $db = get_db(); $p = DB_PREFIX;
+    $db->prepare("UPDATE `{$p}psy_scores` SET recommendation=? WHERE assessment_id=?")->execute([$rec, $ass_id]);
+    header('Location: ?section=assessments&view=' . $ass_id . '&saved=1'); exit;
+}
+
 // Admin: deny mentor change request
 if ($logged_in && $action === 'deny_mentor_change') {
     if (!isset($_SESSION['enp_csrf']) || !hash_equals($_SESSION['enp_csrf'], $_POST['csrf'] ?? '')) {
@@ -500,6 +577,39 @@ if ($logged_in) {
             WHERE r.type = 'mentor_change'
             ORDER BY r.created_at DESC LIMIT 100
         ")->fetchAll();
+    } catch (PDOException $e) {}
+
+    // ── Psychometric assessments ───────────────────────────────────────────
+    $psy_assessments  = [];
+    $psy_counts       = ['total'=>0,'pending'=>0,'in_progress'=>0,'submitted'=>0];
+    $psy_result_row   = null;
+    $psy_score_row    = null;
+    $psy_responses_oa = [];
+    $psy_view_id      = isset($_GET['view']) ? intval($_GET['view']) : 0;
+    $psy_tab          = $_GET['tab'] ?? 'list';
+
+    try {
+        $psy_counts['total']       = (int)$db->query("SELECT COUNT(*) FROM `{$p}psy_assessments`")->fetchColumn();
+        $psy_counts['pending']     = (int)$db->query("SELECT COUNT(*) FROM `{$p}psy_assessments` WHERE status='pending'")->fetchColumn();
+        $psy_counts['in_progress'] = (int)$db->query("SELECT COUNT(*) FROM `{$p}psy_assessments` WHERE status='in_progress'")->fetchColumn();
+        $psy_counts['submitted']   = (int)$db->query("SELECT COUNT(*) FROM `{$p}psy_assessments` WHERE status='submitted'")->fetchColumn();
+
+        $portal['psy_total']     = $psy_counts['total'];
+        $portal['psy_submitted'] = $psy_counts['submitted'];
+
+        $psy_assessments = $db->query("SELECT * FROM `{$p}psy_assessments` ORDER BY created_at DESC LIMIT 200")->fetchAll();
+
+        if ($psy_view_id > 0 && $section === 'assessments') {
+            $psy_result_row = $db->prepare("SELECT * FROM `{$p}psy_assessments` WHERE id=? LIMIT 1");
+            $psy_result_row->execute([$psy_view_id]);
+            $psy_result_row = $psy_result_row->fetch();
+
+            if ($psy_result_row) {
+                $psy_score_stmt = $db->prepare("SELECT * FROM `{$p}psy_scores` WHERE assessment_id=? LIMIT 1");
+                $psy_score_stmt->execute([$psy_view_id]);
+                $psy_score_row = $psy_score_stmt->fetch();
+            }
+        }
     } catch (PDOException $e) {}
 }
 
@@ -747,6 +857,9 @@ HTML;
     <a href="?section=students"      class="nav-tab <?= active_section('students') ?>">Students</a>
     <a href="?section=requests"      class="nav-tab <?= active_section('requests') ?>">
       Requests<?php if (!empty($portal['requests_open'])): ?> <span class="nav-badge"><?= (int)$portal['requests_open'] ?></span><?php endif; ?>
+    </a>
+    <a href="?section=assessments"   class="nav-tab <?= active_section('assessments') ?>">
+      Assessments<?php if (!empty($portal['psy_submitted'])): ?> <span class="nav-badge"><?= (int)$portal['psy_submitted'] ?></span><?php endif; ?>
     </a>
     <a href="?section=sessions"      class="nav-tab <?= active_section('sessions') ?>">Sessions</a>
     <a href="?section=payments"      class="nav-tab <?= active_section('payments') ?>">Payments</a>
@@ -1304,6 +1417,389 @@ HTML;
       <input type="hidden" id="enp-dfnote"     name="admin_note">
     </form>
 
+  <?php elseif ($section === 'assessments'): ?>
+  <!-- ── PSYCHOMETRIC ASSESSMENTS ─────────────────────────── -->
+
+  <?php if (isset($_GET['err'])): ?>
+    <div class="success-banner" style="background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.25);color:var(--red)">Error: <?= h($_GET['err']) ?></div>
+  <?php endif; ?>
+
+  <?php if (isset($_GET['saved'])): ?>
+    <div class="success-banner">Saved.</div>
+  <?php endif; ?>
+
+  <!-- Sub-tabs -->
+  <div style="display:flex;gap:.25rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border);overflow-x:auto">
+    <?php $at = $_GET['tab'] ?? 'list'; ?>
+    <a href="?section=assessments&tab=list"     style="padding:.6rem 1rem;color:<?= $at==='list'     ?'var(--cyan)':'var(--muted)' ?>;border-bottom:2px solid <?= $at==='list'     ?'var(--cyan)':'transparent' ?>;white-space:nowrap;text-decoration:none;font-size:.88rem">Assessment List</a>
+    <a href="?section=assessments&tab=generate" style="padding:.6rem 1rem;color:<?= $at==='generate' ?'var(--cyan)':'var(--muted)' ?>;border-bottom:2px solid <?= $at==='generate' ?'var(--cyan)':'transparent' ?>;white-space:nowrap;text-decoration:none;font-size:.88rem">Generate Link</a>
+    <a href="?section=assessments&tab=settings" style="padding:.6rem 1rem;color:<?= $at==='settings' ?'var(--cyan)':'var(--muted)' ?>;border-bottom:2px solid <?= $at==='settings' ?'var(--cyan)':'transparent' ?>;white-space:nowrap;text-decoration:none;font-size:.88rem">Razorpay Toggle</a>
+  </div>
+
+  <?php if ($psy_view_id > 0 && $psy_result_row): ?>
+  <!-- ── RESULT VIEW ────────────────────────────────────────── -->
+  <?php
+    $edu_map = [1=>'School-leaving',2=>'Diploma/Associate',3=>'Bachelor',4=>'Postgraduate'];
+    $edu_lbl = $edu_map[(int)$psy_result_row['education_level']] ?? $psy_result_row['education_level'];
+    $sc      = $psy_score_row;
+    $band_color = function($v) {
+        if ($v === null) return 'var(--muted)';
+        $f = (float)$v;
+        if ($f >= 80) return 'var(--green)'; if ($f >= 60) return 'var(--cyan)'; if ($f >= 40) return 'var(--gold)'; return 'var(--red)';
+    };
+    $band_label = function($v) {
+        if ($v === null) return '—';
+        $f = (float)$v;
+        if ($f >= 80) return 'Strong'; if ($f >= 60) return 'Solid'; if ($f >= 40) return 'Mixed'; return 'Watch';
+    };
+    function psy_score_cell($v, $band_color, $band_label) {
+        if ($v === null) return '<span style="color:var(--muted)">—</span>';
+        return '<span style="color:' . $band_color($v) . ';font-weight:600">'
+            . round((float)$v,1) . '</span>'
+            . ' <span class="badge badge-muted" style="font-size:.7rem">' . $band_label($v) . '</span>';
+    }
+  ?>
+  <div style="margin-bottom:1rem">
+    <a href="?section=assessments&tab=list" style="color:var(--cyan);font-size:.85rem">&larr; Back to list</a>
+  </div>
+
+  <div class="stats-grid" style="margin-bottom:1.5rem">
+    <div class="stat-card" style="border-color:rgba(34,211,238,.3)">
+      <div class="stat-label">Candidate</div>
+      <div style="font-weight:700;font-size:1.05rem;color:var(--text)"><?= h($psy_result_row['candidate_name'] ?: '—') ?></div>
+      <div class="stat-sub"><?= h($psy_result_row['candidate_email']) ?></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Context</div>
+      <div style="font-size:.88rem;color:var(--cyan)"><?= h($psy_result_row['region']) ?> / <?= h($psy_result_row['field']) ?></div>
+      <div class="stat-sub"><?= h($edu_lbl) ?></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Status</div>
+      <div><span class="badge <?= $psy_result_row['status']==='submitted'?'badge-green':($psy_result_row['status']==='in_progress'?'badge-gold':'badge-muted') ?>"><?= h($psy_result_row['status']) ?></span></div>
+      <div class="stat-sub"><?= h(date('d M Y', strtotime($psy_result_row['created_at']))) ?></div>
+    </div>
+    <?php if ($sc): ?>
+    <div class="stat-card" style="border-color:rgba(74,222,128,.3)">
+      <div class="stat-label">Overall Band</div>
+      <div style="font-weight:800;font-size:1.3rem;color:<?= $band_color($sc['strengths_index']) ?>"><?= h($sc['overall_band']) ?></div>
+      <div class="stat-sub">Reasoning: <?= (int)($sc['reasoning_score']??0) ?>/6 (<?= h($sc['reasoning_band']??'—') ?>)</div>
+    </div>
+    <?php endif; ?>
+  </div>
+
+  <?php if (!$sc): ?>
+    <div class="card" style="padding:2rem;text-align:center;color:var(--muted)">Scores not yet computed (assessment not submitted).</div>
+  <?php else: ?>
+
+  <!-- Scores grid -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;margin-bottom:1.5rem">
+
+    <!-- Strengths + clusters -->
+    <div class="card" style="padding:1.25rem 1.5rem">
+      <div class="section-title" style="margin-bottom:.75rem">Strengths Index</div>
+      <div style="margin-bottom:.75rem"><?= psy_score_cell($sc['strengths_index'], $band_color, $band_label) ?></div>
+      <?php $clusters = json_decode($sc['strengths_clusters'] ?? '{}', true) ?: []; ?>
+      <?php if ($clusters): ?>
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.06em">Cluster breakdown</div>
+        <?php foreach ($clusters as $cl => $v): ?>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.84rem">
+            <span><?= h($cl) ?></span>
+            <span style="color:<?= $band_color($v) ?>;font-weight:600"><?= round((float)$v,1) ?></span>
+          </div>
+        <?php endforeach; ?>
+      <?php endif; ?>
+    </div>
+
+    <!-- Big Five -->
+    <div class="card" style="padding:1.25rem 1.5rem">
+      <div class="section-title" style="margin-bottom:.75rem">Big Five Personality</div>
+      <?php
+        $traits = ['trait_c'=>'Conscientiousness','trait_e'=>'Extraversion','trait_es'=>'Emotional Stability','trait_o'=>'Openness','trait_a'=>'Agreeableness'];
+        foreach ($traits as $key => $label):
+          $tv = $sc[$key] ?? null;
+      ?>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.84rem">
+          <span><?= h($label) ?></span>
+          <span><?= psy_score_cell($tv, $band_color, $band_label) ?></span>
+        </div>
+      <?php endforeach; ?>
+      <!-- Big Five radar (simple CSS bar chart) -->
+      <div style="margin-top:1rem">
+        <?php foreach ($traits as $key => $label):
+          $tv = $sc[$key] ?? null;
+          $pct = $tv !== null ? max(2, round((float)$tv)) : 0;
+        ?>
+        <div style="margin-bottom:.35rem">
+          <div style="font-size:.7rem;color:var(--muted);margin-bottom:.15rem"><?= h(explode(' ',$label)[0]) ?></div>
+          <div style="height:6px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden">
+            <div style="height:100%;width:<?= $pct ?>%;background:var(--cyan);border-radius:3px;transition:width .4s"></div>
+          </div>
+        </div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+
+    <!-- Learning + Engagement + Reasoning -->
+    <div class="card" style="padding:1.25rem 1.5rem">
+      <div class="section-title" style="margin-bottom:.75rem">Other Indices</div>
+      <div style="display:flex;flex-direction:column;gap:.6rem">
+        <div style="display:flex;justify-content:space-between;font-size:.84rem">
+          <span>Learning</span><?= psy_score_cell($sc['learning_index'], $band_color, $band_label) ?>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.84rem">
+          <span>Engagement</span><?= psy_score_cell($sc['engagement_index'], $band_color, $band_label) ?>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.84rem">
+          <span>Reasoning</span>
+          <span style="color:var(--cyan);font-weight:600"><?= (int)($sc['reasoning_score']??0) ?>/6
+            <span class="badge badge-muted" style="font-size:.7rem"><?= h($sc['reasoning_band']??'') ?></span>
+          </span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.84rem">
+          <span>Preference</span>
+          <span style="color:var(--text);font-size:.8rem"><?= h($sc['preference_profile']??'—') ?></span>
+        </div>
+      </div>
+      <!-- Top motivators -->
+      <?php $top3 = json_decode($sc['motivation_top3']??'[]',true) ?: []; ?>
+      <?php if ($top3): ?>
+        <div style="margin-top:1rem">
+          <div style="font-size:.8rem;color:var(--muted);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.06em">Top Motivators</div>
+          <?php foreach ($top3 as $i => $m): ?>
+            <div style="display:flex;align-items:center;gap:.6rem;padding:.3rem 0;font-size:.84rem">
+              <span style="min-width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(34,211,238,.12);color:var(--cyan);font-size:.7rem;font-weight:700"><?= $i+1 ?></span>
+              <?= h($m) ?>
+            </div>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
+    </div>
+
+  </div>
+
+  <!-- Open responses -->
+  <?php $open_resps = json_decode($sc['open_responses']??'[]',true) ?: []; ?>
+  <?php if ($open_resps): ?>
+  <div class="card" style="padding:1.25rem 1.5rem;margin-bottom:1rem">
+    <div class="section-title" style="margin-bottom:1rem">Open Responses</div>
+    <?php foreach ($open_resps as $resp): ?>
+      <div style="margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border)">
+        <div style="font-size:.82rem;color:var(--muted);margin-bottom:.35rem"><?= h($resp['question']??'') ?></div>
+        <div style="font-size:.9rem;line-height:1.6;white-space:pre-wrap"><?= h($resp['answer']??'—') ?></div>
+      </div>
+    <?php endforeach; ?>
+  </div>
+  <?php endif; ?>
+
+  <!-- Editable recommendation -->
+  <div class="card" style="padding:1.25rem 1.5rem;margin-bottom:1rem">
+    <div class="section-title" style="margin-bottom:.75rem">Admin Recommendation</div>
+    <form method="POST">
+      <input type="hidden" name="action"        value="save_psy_recommendation">
+      <input type="hidden" name="csrf"           value="<?= h($csrf) ?>">
+      <input type="hidden" name="assessment_id"  value="<?= (int)$psy_view_id ?>">
+      <textarea name="recommendation" rows="5"
+        style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
+               color:var(--text);padding:.75rem 1rem;font-family:inherit;font-size:.9rem;
+               line-height:1.5;resize:vertical;outline:none"
+        placeholder="Internal recommendation / notes for this candidate…"><?= h($sc['recommendation']??'') ?></textarea>
+      <div style="margin-top:.75rem">
+        <button class="btn-add" type="submit">Save Recommendation</button>
+      </div>
+    </form>
+  </div>
+
+  <?php endif; // $sc ?>
+
+  <?php elseif ($at === 'generate'): ?>
+  <!-- ── GENERATE LINK ─────────────────────────────────────── -->
+
+  <?php if (isset($_GET['generated']) && isset($_GET['tok'])): ?>
+    <?php
+      $gtok = preg_replace('/[^a-f0-9]/', '', $_GET['tok']);
+      $gurl = '';
+      if ($gtok && function_exists('enp_psy_assessment_url')) {
+          $gurl = enp_psy_assessment_url($gtok);
+      } elseif ($gtok && function_exists('home_url')) {
+          $gurl = home_url('/psy-assessment/?t=' . $gtok);
+      }
+    ?>
+    <div class="success-banner" style="margin-bottom:1.25rem">
+      Link generated!
+      <?php if ($gurl): ?>
+        <div style="margin-top:.6rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+          <input id="psy-gen-url" type="text" value="<?= h($gurl) ?>" readonly
+            style="flex:1;min-width:260px;background:var(--bg);border:1px solid var(--border);
+                   border-radius:7px;color:var(--text);padding:.5rem .75rem;font-size:.82rem;
+                   font-family:monospace;outline:none">
+          <button class="btn-add" onclick="navigator.clipboard.writeText(document.getElementById('psy-gen-url').value).then(()=>this.textContent='Copied!').catch(()=>{})" style="white-space:nowrap">Copy Link</button>
+        </div>
+      <?php endif; ?>
+    </div>
+  <?php endif; ?>
+
+  <div class="section-title">Generate Psychometric Assessment Link</div>
+  <p style="color:var(--muted);font-size:.85rem;margin-bottom:1.25rem">
+    Creates a single-use expiring link for a candidate to complete the regional assessment. Link is valid for <?= defined('ENP_PSY_LINK_EXPIRY_DAYS') ? (int)ENP_PSY_LINK_EXPIRY_DAYS : 7 ?> days.
+  </p>
+  <div class="form-card">
+    <form method="POST">
+      <input type="hidden" name="action" value="generate_psy_link">
+      <input type="hidden" name="csrf"   value="<?= h($csrf) ?>">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Candidate Name</label>
+          <input type="text" name="candidate_name" placeholder="Full name (optional at this stage)">
+        </div>
+        <div class="form-group">
+          <label>Candidate Email</label>
+          <input type="email" name="candidate_email" placeholder="candidate@example.com">
+        </div>
+        <div class="form-group">
+          <label>Contact Number</label>
+          <input type="text" name="candidate_phone" placeholder="+44 7700 000000">
+        </div>
+        <div class="form-group">
+          <label>Region *</label>
+          <select name="region" required>
+            <option value="AUTO">Auto (default UK)</option>
+            <option value="UK">UK</option>
+            <option value="US">US</option>
+            <option value="CA">CA</option>
+            <option value="IN">IN</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Education Level *</label>
+          <select name="education_level" required>
+            <option value="">— select —</option>
+            <option value="1">1 — School-leaving</option>
+            <option value="2">2 — Diploma / Associate</option>
+            <option value="3">3 — Bachelor</option>
+            <option value="4">4 — Postgraduate</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Field *</label>
+          <select name="field" required>
+            <option value="">— select —</option>
+            <option value="IT">IT</option>
+            <option value="DATA_AI">Data Science &amp; AI</option>
+            <option value="BUSINESS">Business</option>
+            <option value="HR">HR</option>
+            <option value="FINANCE">Finance</option>
+            <option value="MARKETING">Marketing</option>
+            <option value="INFRA">Infrastructure</option>
+            <option value="INFOSEC">InfoSec</option>
+            <option value="HONORS">Honors</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Payment Reference (optional)</label>
+          <input type="text" name="payment_ref" placeholder="Razorpay order ID or invoice ref">
+        </div>
+      </div>
+      <button class="btn-add" type="submit">Generate Link &rarr;</button>
+    </form>
+  </div>
+
+  <?php elseif ($at === 'settings'): ?>
+  <!-- ── RAZORPAY AUTO-TRIGGER TOGGLE ─────────────────────── -->
+
+  <div class="section-title">Per-Product Razorpay Auto-Trigger</div>
+  <p style="color:var(--muted);font-size:.85rem;margin-bottom:1.25rem">
+    When enabled for a plan, a psychometric assessment link is automatically generated when a student is activated on that plan (Razorpay or manual). Requires WordPress to be loaded.
+  </p>
+  <?php
+    $rzp_plans = function_exists('get_option') ? (array)get_option('enp_psy_rzp_plans', []) : [];
+    $plan_opts = ['basic'=>'Basic','elite'=>'Elite','premium'=>'Premium','accelerator'=>'Career Accelerator','starter'=>'Career Starter'];
+  ?>
+  <div class="form-card">
+    <form method="POST">
+      <input type="hidden" name="action" value="save_psy_rzp_toggle">
+      <input type="hidden" name="csrf"   value="<?= h($csrf) ?>">
+      <div style="display:flex;flex-direction:column;gap:.6rem;margin-bottom:1.25rem">
+        <?php foreach ($plan_opts as $pid => $plabel): ?>
+          <label style="display:flex;align-items:center;gap:.65rem;font-size:.9rem;cursor:pointer">
+            <input type="checkbox" name="rzp_plans[]" value="<?= h($pid) ?>"
+              <?= in_array($pid, $rzp_plans, true) ? 'checked' : '' ?>
+              style="width:16px;height:16px;accent-color:var(--cyan)">
+            <?= h($plabel) ?>
+          </label>
+        <?php endforeach; ?>
+      </div>
+      <button class="btn-add" type="submit">Save Settings</button>
+    </form>
+  </div>
+
+  <?php else: ?>
+  <!-- ── LIST ──────────────────────────────────────────────── -->
+
+  <!-- Stat cards -->
+  <div class="stats-grid" style="margin-bottom:1.5rem">
+    <div class="stat-card"><div class="stat-label">Total Assessments</div><div class="stat-value cyan"><?= (int)$psy_counts['total'] ?></div></div>
+    <div class="stat-card"><div class="stat-label">Submitted</div><div class="stat-value green"><?= (int)$psy_counts['submitted'] ?></div></div>
+    <div class="stat-card"><div class="stat-label">In Progress</div><div class="stat-value gold"><?= (int)$psy_counts['in_progress'] ?></div></div>
+    <div class="stat-card"><div class="stat-label">Pending (not started)</div><div class="stat-value cyan"><?= (int)$psy_counts['pending'] ?></div></div>
+  </div>
+
+  <div class="section-title">All Assessments <span><?= (int)$psy_counts['total'] ?></span></div>
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Candidate</th><th>Region</th><th>Field</th><th>Level</th>
+            <th>Status</th><th>Created</th><th>Expires</th><th>Link</th><th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+        <?php if ($psy_assessments): foreach ($psy_assessments as $pa):
+          $pst  = $pa['status'];
+          $pstc = ['pending'=>'badge-muted','in_progress'=>'badge-gold','submitted'=>'badge-green'][$pst] ?? 'badge-muted';
+          $expired = strtotime($pa['expires_at']) < time();
+          $psy_url = '';
+          if (function_exists('enp_psy_assessment_url')) $psy_url = enp_psy_assessment_url($pa['token']);
+          elseif (function_exists('home_url')) $psy_url = home_url('/psy-assessment/?t=' . $pa['token']);
+        ?>
+          <tr>
+            <td>
+              <div style="font-weight:600;font-size:.88rem"><?= $pa['candidate_name'] ? h($pa['candidate_name']) : '<span style="color:var(--muted)">—</span>' ?></div>
+              <div style="font-size:.76rem;color:var(--muted)"><?= h($pa['candidate_email']) ?></div>
+            </td>
+            <td style="font-size:.82rem"><?= h($pa['region']) ?><?= $pa['defaulted'] ? ' <span title="Auto-defaulted" style="color:var(--gold)">*</span>' : '' ?></td>
+            <td style="font-size:.82rem"><?= h($pa['field']) ?></td>
+            <td style="font-size:.82rem;text-align:center"><?= (int)$pa['education_level'] ?></td>
+            <td><span class="badge <?= $pstc ?>"><?= h(str_replace('_',' ',$pst)) ?></span></td>
+            <td style="font-size:.78rem;color:var(--muted);white-space:nowrap"><?= h(date('d M Y', strtotime($pa['created_at']))) ?></td>
+            <td style="font-size:.78rem;<?= $expired ? 'color:var(--red)' : 'color:var(--muted)' ?>;white-space:nowrap">
+              <?= h(date('d M Y', strtotime($pa['expires_at']))) ?><?= $expired ? ' (exp)' : '' ?>
+            </td>
+            <td>
+              <?php if ($psy_url && $pst !== 'submitted'): ?>
+                <button class="btn-edit psy-copy-btn" data-url="<?= h($psy_url) ?>" style="font-size:.72rem">Copy</button>
+              <?php else: ?>
+                <span style="color:var(--muted);font-size:.75rem">—</span>
+              <?php endif; ?>
+            </td>
+            <td>
+              <?php if ($pst === 'submitted'): ?>
+                <a href="?section=assessments&view=<?= (int)$pa['id'] ?>" class="btn-edit" style="font-size:.72rem;text-decoration:none">View</a>
+              <?php else: ?>
+                <span style="color:var(--muted);font-size:.75rem">—</span>
+              <?php endif; ?>
+            </td>
+          </tr>
+        <?php endforeach; else: ?>
+          <tr class="empty-row"><td colspan="9">No assessments yet. Use the <a href="?section=assessments&tab=generate" style="color:var(--cyan)">Generate Link</a> tab to create the first one.</td></tr>
+        <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <?php endif; // sub-tab ?>
+
   <?php elseif ($section === 'sessions'): ?>
   <!-- ── SESSIONS ───────────────────────────────────────────── -->
 
@@ -1442,6 +1938,12 @@ HTML;
 
   </main>
 </div><!-- .dash -->
+
+<script>
+/* globals used by inline scripts */
+var ajaxUrl    = <?= json_encode(function_exists('admin_url') ? admin_url('admin-ajax.php') : '') ?>;
+var portalNonce = <?= json_encode(function_exists('wp_create_nonce') ? wp_create_nonce('enp_portal') : '') ?>;
+</script>
 
 <script>
 (function(){
@@ -1596,6 +2098,84 @@ HTML;
   });
 
   modal.addEventListener('click', function (e) { if (e.target === this) this.classList.remove('open'); });
+})();
+</script>
+
+<script>
+/* ── Psychometric Assessments JS ──────────────────────────────────────── */
+(function() {
+  // Copy link buttons in the list view
+  document.querySelectorAll('.psy-copy-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var url = this.getAttribute('data-url');
+      if (!url) return;
+      navigator.clipboard.writeText(url).then(function() {
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 2500);
+      }).catch(function() {
+        // Fallback for older browsers
+        var tmp = document.createElement('textarea');
+        tmp.value = url;
+        tmp.style.position = 'fixed';
+        tmp.style.opacity = '0';
+        document.body.appendChild(tmp);
+        tmp.select();
+        document.execCommand('copy');
+        document.body.removeChild(tmp);
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 2500);
+      });
+    });
+  });
+
+  // Email candidate button (sends assessment URL via AJAX)
+  document.querySelectorAll('.psy-email-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var assessId = this.getAttribute('data-id');
+      var origText = this.textContent;
+      this.disabled = true;
+      this.textContent = 'Sending…';
+      var fd = new FormData();
+      fd.append('action', 'enp_psy_email_link');
+      fd.append('nonce',  portalNonce);
+      fd.append('assessment_id', assessId);
+      fetch(ajaxUrl, { method: 'POST', body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          btn.textContent = data.success ? 'Sent!' : 'Failed';
+          btn.style.color = data.success ? 'var(--green)' : 'var(--red)';
+          setTimeout(function() {
+            btn.textContent = origText;
+            btn.style.color = '';
+            btn.disabled = false;
+          }, 3000);
+        })
+        .catch(function() {
+          btn.textContent = 'Error';
+          btn.disabled = false;
+        });
+    });
+  });
+
+  // Big Five trait bar animation on result view
+  var traitBars = document.querySelectorAll('.psy-trait-bar-fill');
+  if (traitBars.length) {
+    requestAnimationFrame(function() {
+      traitBars.forEach(function(bar) {
+        bar.style.transition = 'width .6s ease-out';
+      });
+    });
+  }
+
+  // Auto-dismiss success banners after 5s (assessments section)
+  var banners = document.querySelectorAll('.success-banner');
+  banners.forEach(function(b) {
+    setTimeout(function() {
+      b.style.transition = 'opacity .4s';
+      b.style.opacity = '0';
+      setTimeout(function() { b.style.display = 'none'; }, 450);
+    }, 5000);
+  });
 })();
 </script>
 
