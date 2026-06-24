@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Request, Form, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -9,7 +10,8 @@ from app.config import settings
 from app.database import fetchone
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -20,7 +22,7 @@ async def login_page(request: Request):
         if role == "admin":   return RedirectResponse("/admin")
         if role == "student": return RedirectResponse("/student")
         if role == "mentor":  return RedirectResponse("/mentor")
-    return templates.TemplateResponse("login.html", {"request": request, "error": None})
+    return templates.TemplateResponse(request, "login.html", {"error": None})
 
 
 @router.post("/login")
@@ -59,7 +61,7 @@ async def login(
         else:
             error = "Invalid email or password."
 
-    return templates.TemplateResponse("login.html", {"request": request, "error": error})
+    return templates.TemplateResponse(request, "login.html", {"error": error})
 
 
 @router.get("/logout")
@@ -71,7 +73,7 @@ async def logout():
 
 @router.get("/set-password", response_class=HTMLResponse)
 async def set_password_page(request: Request, token: str = ""):
-    return templates.TemplateResponse("set_password.html", {"request": request, "token": token, "error": None})
+    return templates.TemplateResponse(request, "set_password.html", {"token": token, "error": None})
 
 
 @router.post("/set-password")
@@ -82,18 +84,18 @@ async def set_password(
     confirm: str = Form(...),
 ):
     if password != confirm:
-        return templates.TemplateResponse("set_password.html", {
-            "request": request, "token": token, "error": "Passwords do not match."
+        return templates.TemplateResponse(request, "set_password.html", {
+            "token": token, "error": "Passwords do not match."
         })
     if len(password) < 8:
-        return templates.TemplateResponse("set_password.html", {
-            "request": request, "token": token, "error": "Password must be at least 8 characters."
+        return templates.TemplateResponse(request, "set_password.html", {
+            "token": token, "error": "Password must be at least 8 characters."
         })
 
     payload = decode_token(token)
     if not payload or "user_id" not in payload:
-        return templates.TemplateResponse("set_password.html", {
-            "request": request, "token": token, "error": "Invalid or expired link."
+        return templates.TemplateResponse(request, "set_password.html", {
+            "token": token, "error": "Invalid or expired link."
         })
 
     from app.database import execute as db_exec

@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -6,7 +7,8 @@ from app.database import fetchone, fetchall, execute
 from app import email_service
 
 router = APIRouter(prefix="/student")
-templates = Jinja2Templates(directory="templates")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 
 def _get_student(user: dict) -> dict | None:
@@ -21,7 +23,7 @@ async def dashboard(request: Request):
 
     student = _get_student(user)
     if not student:
-        return templates.TemplateResponse("student/no_profile.html", {"request": request, "user": user})
+        return templates.TemplateResponse(request, "student/no_profile.html", {"user": user})
 
     mentor = None
     if student.get("mentor_id"):
@@ -39,8 +41,7 @@ async def dashboard(request: Request):
     from app.config import settings
     plan_info = settings.PLAN_CATALOG.get(student.get("plan_id", ""), {})
 
-    return templates.TemplateResponse("student/dashboard.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "student/dashboard.html", {
         "user":     user,
         "student":  student,
         "mentor":   mentor,

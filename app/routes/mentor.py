@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -5,7 +6,8 @@ from app.auth import get_current_user
 from app.database import fetchone, fetchall
 
 router = APIRouter(prefix="/mentor")
-templates = Jinja2Templates(directory="templates")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 
 @router.get("", response_class=HTMLResponse)
@@ -16,7 +18,7 @@ async def dashboard(request: Request):
 
     mentor = fetchone("SELECT * FROM mentors WHERE user_id=%s LIMIT 1", (user["sub"],))
     if not mentor:
-        return templates.TemplateResponse("mentor/no_profile.html", {"request": request, "user": user})
+        return templates.TemplateResponse(request, "mentor/no_profile.html", {"user": user})
 
     students = fetchall(
         """SELECT s.id, s.full_name, s.email, s.plan_id, s.sessions_total, s.sessions_used,
@@ -36,8 +38,7 @@ async def dashboard(request: Request):
         (mentor["id"],),
     ) or {"total": 0}
 
-    return templates.TemplateResponse("mentor/dashboard.html", {
-        "request":  request,
+    return templates.TemplateResponse(request, "mentor/dashboard.html", {
         "user":     user,
         "mentor":   mentor,
         "students": students,

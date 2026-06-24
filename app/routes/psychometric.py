@@ -7,6 +7,7 @@ Psychometric candidate flow:
   POST /api/psy/submit           → submit + score (rate-limited)
 """
 import json
+import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Request
@@ -18,7 +19,8 @@ from app.services.psy_scorer import score as psy_score, persist_scores
 from app import email_service
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 RATE_LIMIT_WINDOW_SECONDS = 3600
 RATE_LIMIT_MAX_ATTEMPTS   = 5
@@ -28,8 +30,7 @@ RATE_LIMIT_MAX_ATTEMPTS   = 5
 
 @router.get("/assessment", response_class=HTMLResponse)
 async def assessment_page(request: Request, t: str = ""):
-    return templates.TemplateResponse("psy/candidate.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "psy/candidate.html", {
         "token": t,
     })
 

@@ -7,7 +7,8 @@ from app.database import execute
 from app import email_service
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_PHOTO_MB = 5
@@ -15,7 +16,7 @@ MAX_PHOTO_MB = 5
 
 @router.get("/partner", response_class=HTMLResponse)
 async def partner_page(request: Request):
-    return templates.TemplateResponse("partner/apply.html", {"request": request, "submitted": False, "error": None})
+    return templates.TemplateResponse(request, "partner/apply.html", {"submitted": False, "error": None})
 
 
 @router.post("/partner/apply")
@@ -30,21 +31,21 @@ async def partner_apply(
     photo:           UploadFile = File(None),
 ):
     if "@" not in email:
-        return templates.TemplateResponse("partner/apply.html", {
-            "request": request, "submitted": False, "error": "Invalid email address."
+        return templates.TemplateResponse(request, "partner/apply.html", {
+            "submitted": False, "error": "Invalid email address."
         })
 
     photo_url = ""
     if photo and photo.filename:
         if photo.content_type not in ALLOWED_IMAGE_TYPES:
-            return templates.TemplateResponse("partner/apply.html", {
-                "request": request, "submitted": False,
+            return templates.TemplateResponse(request, "partner/apply.html", {
+                "submitted": False,
                 "error": "Photo must be JPEG, PNG, or WebP."
             })
         content = await photo.read()
         if len(content) > MAX_PHOTO_MB * 1024 * 1024:
-            return templates.TemplateResponse("partner/apply.html", {
-                "request": request, "submitted": False,
+            return templates.TemplateResponse(request, "partner/apply.html", {
+                "submitted": False,
                 "error": f"Photo must be under {MAX_PHOTO_MB}MB."
             })
         ext = photo.filename.rsplit(".", 1)[-1].lower()
@@ -67,6 +68,6 @@ async def partner_apply(
         "linkedin": linkedin, "tech_stack": tech_stack, "available_slots": available_slots,
     })
 
-    return templates.TemplateResponse("partner/apply.html", {
-        "request": request, "submitted": True, "error": None
+    return templates.TemplateResponse(request, "partner/apply.html", {
+        "submitted": True, "error": None
     })

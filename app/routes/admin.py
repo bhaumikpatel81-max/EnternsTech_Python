@@ -1,4 +1,5 @@
 import json
+import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Request, Form
@@ -11,7 +12,8 @@ from app import email_service
 from app.routes.payments import activate_student
 
 router = APIRouter(prefix="/admin")
-templates = Jinja2Templates(directory="templates")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 
 def _admin_required(request: Request):
@@ -35,8 +37,8 @@ async def overview(request: Request):
         "open_requests": (fetchone("SELECT COUNT(*) AS n FROM requests WHERE status='open'") or {}).get("n", 0),
         "assessments": (fetchone("SELECT COUNT(*) AS n FROM psy_assessments") or {}).get("n", 0),
     }
-    return templates.TemplateResponse("admin/overview.html", {
-        "request": request, "stats": stats, "section": "overview"
+    return templates.TemplateResponse(request, "admin/overview.html", {
+        "stats": stats, "section": "overview"
     })
 
 
@@ -55,8 +57,8 @@ async def students(request: Request, q: str = ""):
     sql += " ORDER BY s.created_at DESC"
     rows = fetchall(sql, params)
     mentors = fetchall("SELECT id, full_name FROM mentors WHERE status='approved' ORDER BY full_name")
-    return templates.TemplateResponse("admin/students.html", {
-        "request": request, "students": rows, "mentors": mentors,
+    return templates.TemplateResponse(request, "admin/students.html", {
+        "students": rows, "mentors": mentors,
         "section": "students", "q": q, "plan_catalog": settings.PLAN_CATALOG,
     })
 
@@ -108,8 +110,8 @@ async def mentors(request: Request, tab: str = "approved"):
         rows = fetchall("SELECT * FROM mentors WHERE status='pending' ORDER BY created_at DESC")
     else:
         rows = fetchall("SELECT * FROM mentors WHERE status='approved' ORDER BY full_name")
-    return templates.TemplateResponse("admin/mentors.html", {
-        "request": request, "mentors": rows, "section": "mentors", "tab": tab,
+    return templates.TemplateResponse(request, "admin/mentors.html", {
+        "mentors": rows, "section": "mentors", "tab": tab,
     })
 
 
@@ -190,8 +192,8 @@ async def payments(request: Request):
            FROM payments p LEFT JOIN students s ON p.student_id=s.id
            ORDER BY p.created_at DESC LIMIT 200"""
     )
-    return templates.TemplateResponse("admin/payments.html", {
-        "request": request, "payments": rows, "section": "payments",
+    return templates.TemplateResponse(request, "admin/payments.html", {
+        "payments": rows, "section": "payments",
         "plan_catalog": settings.PLAN_CATALOG,
     })
 
@@ -210,8 +212,8 @@ async def requests_view(request: Request):
            LEFT JOIN mentors m  ON r.mentor_id=m.id
            WHERE r.status='open' ORDER BY r.created_at DESC"""
     )
-    return templates.TemplateResponse("admin/requests.html", {
-        "request": request, "requests": rows, "section": "requests",
+    return templates.TemplateResponse(request, "admin/requests.html", {
+        "requests": rows, "section": "requests",
     })
 
 
@@ -253,8 +255,8 @@ async def assessments(request: Request, tab: str = "list"):
     if not _admin_required(request):
         return RedirectResponse("/login")
     rows = fetchall("SELECT * FROM psy_assessments ORDER BY created_at DESC LIMIT 200")
-    return templates.TemplateResponse("admin/assessments.html", {
-        "request": request, "assessments": rows, "section": "assessments", "tab": tab,
+    return templates.TemplateResponse(request, "admin/assessments.html", {
+        "assessments": rows, "section": "assessments", "tab": tab,
         "plan_catalog": settings.PLAN_CATALOG, "rzp_plans": {},
     })
 
@@ -274,8 +276,8 @@ async def assessment_detail(request: Request, assessment_id: int):
                     scores[field] = json.loads(scores[field])
                 except Exception:
                     pass
-    return templates.TemplateResponse("admin/assessment_detail.html", {
-        "request": request, "assessment": row, "scores": scores, "section": "assessments",
+    return templates.TemplateResponse(request, "admin/assessment_detail.html", {
+        "assessment": row, "scores": scores, "section": "assessments",
     })
 
 
@@ -353,8 +355,8 @@ async def sessions_view(request: Request):
     )
     students = fetchall("SELECT id, full_name FROM students WHERE status='active' ORDER BY full_name")
     mentors  = fetchall("SELECT id, full_name FROM mentors WHERE status='approved' ORDER BY full_name")
-    return templates.TemplateResponse("admin/sessions.html", {
-        "request": request, "sessions": rows,
+    return templates.TemplateResponse(request, "admin/sessions.html", {
+        "sessions": rows,
         "students": students, "mentors": mentors, "section": "sessions",
     })
 
@@ -405,8 +407,8 @@ async def manual_revenue(request: Request):
     totals = fetchall(
         "SELECT currency, SUM(amount) AS total FROM manual_revenue GROUP BY currency"
     )
-    return templates.TemplateResponse("admin/manual_revenue.html", {
-        "request": request, "entries": rows, "totals": totals, "section": "manual_revenue",
+    return templates.TemplateResponse(request, "admin/manual_revenue.html", {
+        "entries": rows, "totals": totals, "section": "manual_revenue",
     })
 
 
@@ -468,8 +470,8 @@ async def psy_settings(request: Request):
         rzp_plans = json.loads(row["setting_val"]) if row else {}
     except Exception:
         rzp_plans = {}
-    return templates.TemplateResponse("admin/assessments.html", {
-        "request": request, "assessments": rows,
+    return templates.TemplateResponse(request, "admin/assessments.html", {
+        "assessments": rows,
         "section": "assessments", "tab": "settings",
         "rzp_plans": rzp_plans,
         "plan_catalog": settings.PLAN_CATALOG,
