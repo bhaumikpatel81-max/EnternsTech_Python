@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Mentor Portal — Enterns Tech{% endblock %}
+
+{% block nav_links %}
+  <form action="/logout" method="get" style="margin:0">
+    <button class="logout-btn">Sign Out</button>
+  </form>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap" style="text-align:center;padding-top:5rem">
+  <h2 style="color:var(--enp-text)">Mentor Profile Pending</h2>
+  <p style="color:var(--enp-muted)">Your mentor account is active but the profile is not yet linked.<br>
+  Please contact <a href="mailto:admin@enternstech.com" style="color:var(--enp-cyan)">admin@enternstech.com</a>.</p>
+</div>
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends "admin/layout.html" %}
+{% block title %}Assessment Result — Admin{% endblock %}
+{% block page_title %}Assessment Result{% endblock %}
+
+{% block body %}
+<div style="display:flex;gap:.75rem;margin-bottom:1.5rem">
+  <a href="/admin/assessments" class="enp-btn enp-btn--ghost enp-btn--sm">← Back to Assessments</a>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+  <!-- Candidate Info -->
+  <div class="enp-card">
+    <div class="enp-card__header"><h2 class="enp-card__title">Candidate</h2></div>
+    <div class="enp-card__body">
+      <table style="width:100%;border-collapse:collapse">
+        {% for label, val in [
+          ('Name', assessment.candidate_name),
+          ('Email', assessment.candidate_email),
+          ('Phone', assessment.candidate_phone),
+          ('Region', assessment.region),
+          ('Field', assessment.field),
+          ('Education Level', assessment.education_level),
+          ('Status', assessment.status | title),
+          ('Submitted', assessment.updated_at.strftime('%d %b %Y %H:%M') if assessment.updated_at else '—'),
+        ] %}
+        <tr>
+          <td style="color:var(--enp-muted);font-size:.85rem;padding:.4rem .5rem .4rem 0;width:140px">{{ label }}</td>
+          <td style="color:var(--enp-text);font-size:.9rem;padding:.4rem 0">{{ val or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+
+  <!-- Overall Band -->
+  <div class="enp-card">
+    <div class="enp-card__header"><h2 class="enp-card__title">Overall Assessment</h2></div>
+    <div class="enp-card__body">
+      {% if scores %}
+      <div style="text-align:center;padding:1rem 0">
+        {% set band = scores.overall_band %}
+        <div style="font-size:3rem;font-weight:700;color:{% if band=='Strong' %}var(--enp-green){% elif band=='Solid' %}var(--enp-cyan){% elif band=='Mixed' %}var(--enp-gold){% else %}var(--enp-red){% endif %}">
+          {{ band }}
+        </div>
+        <div style="color:var(--enp-muted);font-size:.9rem;margin-top:.5rem">Overall Band</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.5rem">
+        {% for label, val in [
+          ('Strengths', scores.strengths_index),
+          ('Learning',  scores.learning_index),
+          ('Engagement', scores.engagement_index),
+          ('Reasoning', (scores.reasoning_score|string + '/6') if scores.reasoning_score is not none else '—'),
+        ] %}
+        <div style="background:#0a0f1e;border-radius:8px;padding:.75rem">
+          <div style="color:var(--enp-muted);font-size:.78rem">{{ label | upper }}</div>
+          <div style="font-weight:700;color:var(--enp-text);font-size:1.1rem;margin-top:.2rem">
+            {% if val is not none and val != '—' %}
+              {% if val is number %}{{ "{:.1f}".format(val) }}{% else %}{{ val }}{% endif %}
+            {% else %}—{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="color:var(--enp-muted)">Scores not computed yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if scores %}
+<!-- Big Five -->
+<div class="enp-card" style="margin-bottom:1.5rem">
+  <div class="enp-card__header"><h2 class="enp-card__title">Big Five Personality Traits</h2></div>
+  <div class="enp-card__body">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem">
+      {% for trait_key, trait_label in [
+        ('trait_c','Conscientiousness'),('trait_e','Extraversion'),
+        ('trait_es','Emotional Stability'),('trait_o','Openness'),('trait_a','Agreeableness')
+      ] %}
+      {% set val = scores[trait_key] %}
+      <div style="background:#0a0f1e;border-radius:10px;padding:1rem;text-align:center">
+        <div style="color:var(--enp-muted);font-size:.78rem;margin-bottom:.5rem">{{ trait_label | upper }}</div>
+        <div style="font-size:1.8rem;font-weight:700;
+          color:{% if val is not none and val >= 80 %}var(--enp-green){% elif val is not none and val >= 60 %}var(--enp-cyan){% elif val is not none and val >= 40 %}var(--enp-gold){% else %}var(--enp-red){% endif %}">
+          {{ "{:.1f}".format(val) if val is not none else '—' }}
+        </div>
+        <div style="margin-top:.5rem;height:6px;background:var(--enp-border);border-radius:3px">
+          {% if val is not none %}
+          <div style="width:{{ val }}%;height:100%;background:var(--enp-cyan);border-radius:3px;transition:width .5s"></div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Reasoning + Preference -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+  <div class="enp-card">
+    <div class="enp-card__header"><h2 class="enp-card__title">Reasoning</h2></div>
+    <div class="enp-card__body">
+      <div style="font-size:2rem;font-weight:700;color:var(--enp-text)">{{ scores.reasoning_score }}/6</div>
+      <div style="margin-top:.5rem"><span class="enp-badge {% if scores.reasoning_band=='strong' %}enp-badge--success{% elif scores.reasoning_band=='adequate' %}enp-badge--warn{% else %}enp-badge--error{% endif %}">{{ scores.reasoning_band | title }}</span></div>
+    </div>
+  </div>
+  <div class="enp-card">
+    <div class="enp-card__header"><h2 class="enp-card__title">Work Preference</h2></div>
+    <div class="enp-card__body">
+      <div style="font-size:1rem;color:var(--enp-text)">{{ scores.preference_profile or '—' }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Top Motivators -->
+{% if scores.motivation_top3 %}
+<div class="enp-card" style="margin-bottom:1.5rem">
+  <div class="enp-card__header"><h2 class="enp-card__title">Top Motivators</h2></div>
+  <div class="enp-card__body">
+    <ol style="padding-left:1.5rem;color:var(--enp-text)">
+      {% for m in scores.motivation_top3 %}
+      <li style="margin-bottom:.4rem">{{ m }}</li>
+      {% endfor %}
+    </ol>
+  </div>
+</div>
+{% endif %}
+
+<!-- Open Responses -->
+{% if scores.open_responses %}
+<div class="enp-card" style="margin-bottom:1.5rem">
+  <div class="enp-card__header"><h2 class="enp-card__title">Open Responses</h2></div>
+  <div class="enp-card__body">
+    {% for item in scores.open_responses %}
+    <div style="margin-bottom:1.25rem">
+      <div style="color:var(--enp-muted);font-size:.85rem;margin-bottom:.3rem">{{ loop.index }}. {{ item.question }}</div>
+      <div style="color:var(--enp-text);font-size:.9rem;background:#0a0f1e;padding:.75rem;border-radius:8px">{{ item.answer or '(no answer)' }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Recommendation -->
+<div class="enp-card">
+  <div class="enp-card__header"><h2 class="enp-card__title">Admin Recommendation</h2></div>
+  <div class="enp-card__body">
+    <textarea id="rec-text" rows="5" style="width:100%;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-size:.9rem;padding:.75rem;resize:vertical;font-family:inherit">{{ scores.recommendation or '' }}</textarea>
+    <button class="enp-btn enp-btn--primary enp-btn--sm" style="margin-top:.75rem" onclick="saveRec()">Save Recommendation</button>
+    <span id="rec-msg" style="display:none;color:var(--enp-green);font-size:.85rem;margin-left:.5rem">Saved!</span>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function saveRec(){
+  const rec=document.getElementById('rec-text').value;
+  const fd=new FormData();
+  fd.append('assessment_id','{{ assessment.id }}');
+  fd.append('recommendation',rec);
+  const r=await fetch('/admin/assessments/save-recommendation',{method:'POST',body:fd});
+  const d=await r.json();
+  const msg=document.getElementById('rec-msg');
+  msg.style.display='inline';
+  setTimeout(()=>msg.style.display='none',3000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enterns Tech — Career Mentoring for Tech Professionals</title>
+  <link rel="stylesheet" href="/static/css/portal.css">
+  <style>
+    body{background:var(--enp-bg)}
+    .nav{display:flex;align-items:center;justify-content:space-between;padding:1rem 2.5rem;
+         background:rgba(14,20,34,.9);border-bottom:1px solid var(--enp-border);
+         position:sticky;top:0;z-index:100;backdrop-filter:blur(8px)}
+    .nav-logo{color:var(--enp-cyan);font-weight:700;font-size:1.2rem;text-decoration:none}
+    .nav-links{display:flex;gap:1rem;align-items:center}
+    .nav-links a{color:var(--enp-muted);text-decoration:none;font-size:.9rem;transition:color .15s}
+    .nav-links a:hover{color:var(--enp-text)}
+    .hero{text-align:center;padding:5rem 1.5rem 4rem;max-width:800px;margin:0 auto}
+    .hero h1{font-size:3rem;font-weight:800;margin:0 0 1.25rem;line-height:1.15;color:var(--enp-text)}
+    .hero h1 span{color:var(--enp-cyan)}
+    .hero p{color:var(--enp-muted);font-size:1.15rem;line-height:1.7;max-width:580px;margin:0 auto 2rem}
+    .hero-actions{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+    .plans{padding:4rem 1.5rem;max-width:1100px;margin:0 auto}
+    .plans h2{text-align:center;font-size:2rem;margin-bottom:3rem;color:var(--enp-text)}
+    .plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem}
+    .plan-card{background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;
+               padding:2rem 1.5rem;transition:border-color .2s,transform .2s;cursor:pointer}
+    .plan-card:hover{border-color:var(--enp-cyan);transform:translateY(-4px)}
+    .plan-card .plan-name{font-weight:700;color:var(--enp-text);font-size:1.05rem;margin-bottom:.5rem}
+    .plan-card .plan-price{font-size:1.8rem;font-weight:700;color:var(--enp-cyan);margin-bottom:.75rem}
+    .plan-card .plan-feature{color:var(--enp-muted);font-size:.88rem;padding:.3rem 0;
+                              border-bottom:1px solid var(--enp-border);display:flex;gap:.5rem}
+    .plan-card .plan-btn{width:100%;margin-top:1.25rem;padding:.7rem;background:var(--enp-cyan);
+                         color:#05080f;font-weight:700;border:none;border-radius:8px;cursor:pointer;
+                         font-family:inherit;font-size:.95rem}
+    .plan-card .plan-btn:hover{opacity:.88}
+    .section-cta{text-align:center;padding:4rem 1.5rem;background:var(--enp-surface);
+                 border-top:1px solid var(--enp-border);border-bottom:1px solid var(--enp-border)}
+    .footer{text-align:center;padding:2rem 1.5rem;color:var(--enp-muted);font-size:.85rem;
+            border-top:1px solid var(--enp-border)}
+    /* Payment modal */
+    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;
+           align-items:center;justify-content:center}
+    .modal-card{background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;
+                padding:2rem;max-width:440px;width:90%}
+    .modal-card h3{margin:0 0 1.25rem;color:var(--enp-text)}
+    .modal-input{width:100%;padding:.7rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);
+                 border-radius:8px;color:var(--enp-text);font-size:.95rem;font-family:inherit;outline:none}
+    .modal-input:focus{border-color:var(--enp-cyan)}
+    .modal-error{color:var(--enp-red);font-size:.85rem;display:none;margin-top:.5rem}
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="nav-logo">Enterns Tech</a>
+    <div class="nav-links">
+      <a href="#plans">Plans</a>
+      <a href="/partner">Become a Mentor</a>
+      <a href="/login">Sign In</a>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <h1>Launch Your <span>Tech Career</span> with Expert Mentoring</h1>
+    <p>Get personalised guidance from industry professionals. CV redesign, mock interviews, and 1-on-1 mentoring sessions tailored to your goals.</p>
+    <div class="hero-actions">
+      <a href="#plans" class="enp-btn enp-btn--primary" style="font-size:1rem;padding:.75rem 2rem">View Plans</a>
+      <a href="/partner" class="enp-btn enp-btn--ghost" style="font-size:1rem;padding:.75rem 2rem">Become a Mentor</a>
+    </div>
+  </div>
+
+  <section class="plans" id="plans">
+    <h2>Choose Your Plan</h2>
+    <div class="plan-grid">
+      {% for plan_id, plan in [
+        ('basic',       {'name':'Basic Plan',              'price':'₹1,50,000','sessions':4,  'features':['4 mentoring sessions','CV redesign','Interview prep','Email support']}),
+        ('elite',       {'name':'Elite Plan',              'price':'₹2,50,000','sessions':6,  'features':['6 mentoring sessions','CV redesign','LinkedIn optimisation','Mock interviews','Priority support']}),
+        ('premium',     {'name':'Premium Plan',            'price':'₹3,50,000','sessions':8,  'features':['8 mentoring sessions','CV redesign','Full job prep','Portfolio review','Placement support']}),
+        ('starter',     {'name':'Career Starter Combo',   'price':'₹3,75,000','sessions':6,  'features':['6 sessions','Psychometric assessment','CV + LinkedIn','Career roadmap']}),
+        ('accelerator', {'name':'Career Accelerator Combo','price':'₹5,50,000','sessions':8, 'features':['8 sessions','Psychometric assessment','Full mentoring suite','Placement guarantee support']}),
+      ] %}
+      <div class="plan-card" id="plan-{{ plan_id }}">
+        <div class="plan-name">{{ plan.name }}</div>
+        <div class="plan-price">{{ plan.price }}</div>
+        {% for feature in plan.features %}
+        <div class="plan-feature"><span>✓</span>{{ feature }}</div>
+        {% endfor %}
+        <button class="plan-btn" onclick="openPaymentModal('{{ plan_id }}', '{{ plan.name }}', '{{ plan.price }}')">
+          Enrol Now
+        </button>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="section-cta">
+    <h2 style="color:var(--enp-text);margin:0 0 1rem">Ready to start your career journey?</h2>
+    <p style="color:var(--enp-muted);margin:0 0 2rem">Join hundreds of students who have landed their dream tech roles.</p>
+    <a href="#plans" class="enp-btn enp-btn--primary" style="font-size:1rem;padding:.75rem 2rem">Get Started Today</a>
+  </section>
+
+  <footer class="footer">
+    <p>© 2025 Enterns Tech. All rights reserved. &bull;
+      <a href="/partner" style="color:var(--enp-cyan)">Become a Mentor</a> &bull;
+      <a href="/login" style="color:var(--enp-cyan)">Login</a>
+    </p>
+  </footer>
+
+  <!-- Payment Modal -->
+  <div id="payment-modal" class="modal">
+    <div class="modal-card">
+      <h3 id="modal-plan-title">Enrol</h3>
+      <p style="color:var(--enp-muted);font-size:.9rem;margin-bottom:1.25rem">Enter your email to proceed to payment.</p>
+      <input type="hidden" id="modal-plan-id">
+      <div style="margin-bottom:1rem">
+        <input type="email" id="modal-email" class="modal-input" placeholder="your@email.com">
+        <div class="modal-error" id="modal-error"></div>
+      </div>
+      <div style="display:flex;gap:.75rem">
+        <button class="enp-btn enp-btn--primary" style="flex:1" onclick="proceedToPayment()">Pay Now</button>
+        <button class="enp-btn enp-btn--ghost" onclick="document.getElementById('payment-modal').style.display='none'">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function openPaymentModal(planId, planName, planPrice){
+      document.getElementById('modal-plan-id').value=planId;
+      document.getElementById('modal-plan-title').textContent='Enrol — '+planName+' ('+planPrice+')';
+      document.getElementById('modal-error').style.display='none';
+      document.getElementById('payment-modal').style.display='flex';
+    }
+    async function proceedToPayment(){
+      const planId=document.getElementById('modal-plan-id').value;
+      const email=document.getElementById('modal-email').value.trim();
+      const errEl=document.getElementById('modal-error');
+      if(!email||!email.includes('@')){errEl.textContent='Please enter a valid email.';errEl.style.display='block';return;}
+      errEl.style.display='none';
+      const r=await fetch('/api/payments/create-order',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({plan_id:planId,email})
+      });
+      const d=await r.json();
+      if(!d.ok){errEl.textContent=d.error||'Error creating order.';errEl.style.display='block';return;}
+      const rzp=new Razorpay({
+        key:d.key_id,amount:d.amount,currency:d.currency,order_id:d.order_id,
+        name:'Enterns Tech',description:'Career Mentoring Enrolment',
+        handler:async function(resp){
+          const vr=await fetch('/api/payments/verify',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({...resp,payment_id:d.payment_id,email})
+          });
+          const vd=await vr.json();
+          if(vd.ok)window.location.href=vd.redirect;
+          else{errEl.textContent=vd.error||'Payment verification failed.';errEl.style.display='block';}
+        },
+        prefill:{email},theme:{color:'#22D3EE'},
+        modal:{ondismiss:()=>{}}
+      });
+      rzp.open();
+    }
+  </script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</body>
+</html>

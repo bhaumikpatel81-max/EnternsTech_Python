@@ -1,0 +1,42 @@
+{% extends "admin/layout.html" %}
+{% block title %}Payments — Admin{% endblock %}
+{% block page_title %}Payments{% endblock %}
+
+{% block body %}
+<div class="enp-card">
+  <div class="enp-card__body" style="padding:0;overflow-x:auto">
+    <table class="enp-table" style="min-width:700px">
+      <thead>
+        <tr><th>Date</th><th>Student</th><th>Plan</th><th>Amount</th><th>Gateway</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for p in payments %}
+        <tr>
+          <td style="font-size:.85rem;color:var(--enp-muted)">{{ p.created_at.strftime('%d %b %Y') if p.created_at else '' }}</td>
+          <td>
+            <div>{{ p.student_name or '—' }}</div>
+            <div style="color:var(--enp-muted);font-size:.8rem">{{ p.email }}</div>
+          </td>
+          <td>
+            {% if plan_catalog.get(p.plan_id) %}
+              {{ plan_catalog[p.plan_id].name }}
+            {% else %}{{ p.plan_id }}{% endif %}
+          </td>
+          <td style="color:var(--enp-green);font-weight:600">₹{{ "{:,.0f}".format(p.amount) }}</td>
+          <td>
+            <span class="enp-badge enp-badge--info">{{ p.gateway | title }}</span>
+          </td>
+          <td>
+            <span class="enp-badge {% if p.status=='paid' %}enp-badge--success{% elif p.status=='failed' %}enp-badge--error{% elif p.status=='refunded' %}enp-badge--warn{% else %}enp-badge--info{% endif %}">
+              {{ p.status | title }}
+            </span>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align:center;color:var(--enp-muted);padding:2rem">No payments yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

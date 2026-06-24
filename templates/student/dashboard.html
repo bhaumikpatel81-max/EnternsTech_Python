@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}Student Portal — Enterns Tech{% endblock %}
+
+{% block nav_links %}
+  <a href="/student" class="active">Dashboard</a>
+  <form action="/logout" method="get" style="margin:0">
+    <button class="logout-btn">Sign Out</button>
+  </form>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="enp-portal-header">
+    <div class="enp-portal-header__title">
+      <h1>Student Portal</h1>
+      <span class="enp-badge enp-badge--student">{{ student.plan_id | upper if student else '' }}</span>
+    </div>
+    <div>
+      <span style="color:var(--enp-muted);font-size:.9rem">{{ user.email }}</span>
+    </div>
+  </div>
+
+  <!-- Plan Info -->
+  <div class="enp-card" style="margin-bottom:1.5rem">
+    <div class="enp-card__header">
+      <h2 class="enp-card__title">Your Plan</h2>
+    </div>
+    <div class="enp-card__body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem">
+      <div>
+        <div style="color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">PLAN</div>
+        <div style="font-weight:600;color:var(--enp-cyan)">{{ plan_info.get('name','—') }}</div>
+      </div>
+      <div>
+        <div style="color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">SESSIONS</div>
+        <div style="font-weight:600">{{ student.sessions_used }}/{{ student.sessions_total }}</div>
+      </div>
+      <div>
+        <div style="color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">CV REDESIGN</div>
+        <div>
+          <span class="enp-badge {% if student.cv_redesign_status == 'done' %}enp-badge--success{% elif student.cv_redesign_status == 'in_progress' %}enp-badge--warn{% else %}enp-badge--info{% endif %}">
+            {{ student.cv_redesign_status | replace('_',' ') | title }}
+          </span>
+        </div>
+      </div>
+      <div>
+        <div style="color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">STATUS</div>
+        <div>
+          <span class="enp-badge {% if student.status == 'active' %}enp-badge--success{% else %}enp-badge--warn{% endif %}">
+            {{ student.status | title }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upgrade plan section (if applicable) -->
+  {% set upgrades = [] %}
+  {% for pid, pinfo in plan_catalog.items() %}
+    {% if pinfo.paise > plan_info.get('paise', 0) %}{% set _ = upgrades.append((pid, pinfo)) %}{% endif %}
+  {% endfor %}
+  {% if upgrades %}
+  <div class="enp-card" style="margin-bottom:1.5rem" id="upgrade-section">
+    <div class="enp-card__header"><h2 class="enp-card__title">Upgrade Your Plan</h2></div>
+    <div class="enp-card__body">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem" id="plan-grid">
+        {% for pid, pinfo in upgrades %}
+        <div class="enp-card" style="cursor:pointer;border-color:var(--enp-border)" onclick="startPayment('{{ pid }}')">
+          <div style="padding:1.25rem">
+            <div style="font-weight:700;color:var(--enp-text);margin-bottom:.4rem">{{ pinfo.name }}</div>
+            <div style="color:var(--enp-cyan);font-size:1.2rem;font-weight:700">{{ pinfo.price_display }}</div>
+            <div style="color:var(--enp-muted);font-size:.85rem;margin-top:.3rem">{{ pinfo.sessions }} sessions</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+    <!-- Your Mentor -->
+    <div class="enp-card">
+      <div class="enp-card__header">
+        <h2 class="enp-card__title">Your Mentor</h2>
+        {% if mentor %}<button class="enp-btn enp-btn--ghost enp-btn--sm" onclick="document.getElementById('change-mentor-modal').style.display='flex'">Request Change</button>{% endif %}
+      </div>
+      <div class="enp-card__body">
+        {% if mentor %}
+        <div style="display:flex;align-items:center;gap:1rem">
+          {% if mentor.photo_url %}
+          <img src="{{ mentor.photo_url }}" alt="{{ mentor.full_name }}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--enp-border)">
+          {% else %}
+          <div style="width:56px;height:56px;border-radius:50%;background:var(--enp-border);display:flex;align-items:center;justify-content:center;color:var(--enp-cyan);font-size:1.4rem">
+            {{ mentor.full_name[0] | upper }}
+          </div>
+          {% endif %}
+          <div>
+            <div style="font-weight:600">{{ mentor.full_name }}</div>
+            <div style="color:var(--enp-muted);font-size:.85rem">{{ mentor.tech_stack[:80] if mentor.tech_stack else '' }}</div>
+          </div>
+        </div>
+        {% else %}
+        <p style="color:var(--enp-muted)">No mentor assigned yet.</p>
+        <button class="enp-btn enp-btn--primary enp-btn--sm" onclick="document.getElementById('pick-mentor-modal').style.display='flex'">Pick a Mentor</button>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Skills -->
+    <div class="enp-card">
+      <div class="enp-card__header"><h2 class="enp-card__title">Your Skills</h2></div>
+      <div class="enp-card__body">
+        <textarea id="skills-input" style="width:100%;min-height:80px;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-size:.9rem;padding:.75rem;resize:vertical;font-family:inherit" placeholder="e.g. Python, React, SQL, Machine Learning...">{{ student.tech_stack or '' }}</textarea>
+        <button class="enp-btn enp-btn--primary enp-btn--sm" style="margin-top:.75rem" onclick="saveSkills()">Save Skills</button>
+        <span id="skills-msg" style="color:var(--enp-green);font-size:.85rem;margin-left:.5rem;display:none">Saved!</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sessions -->
+  <div class="enp-card">
+    <div class="enp-card__header"><h2 class="enp-card__title">Sessions</h2></div>
+    <div class="enp-card__body">
+      {% if sessions %}
+      <div style="overflow-x:auto">
+        <table class="enp-table">
+          <thead><tr><th>Date</th><th>Mentor</th><th>Duration</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for s in sessions %}
+            <tr>
+              <td>{{ s.scheduled_at.strftime('%d %b %Y, %H:%M') if s.scheduled_at else '—' }}</td>
+              <td>{{ s.mentor_name if s.get('mentor_name') else '—' }}</td>
+              <td>{{ s.duration_min }} min</td>
+              <td><span class="enp-badge {% if s.status == 'completed' %}enp-badge--success{% elif s.status == 'cancelled' %}enp-badge--error{% else %}enp-badge--info{% endif %}">{{ s.status | title }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p style="color:var(--enp-muted)">No sessions yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Pick Mentor Modal -->
+<div id="pick-mentor-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center">
+  <div style="background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;padding:2rem;max-width:600px;width:90%;max-height:80vh;overflow-y:auto">
+    <h3 style="color:var(--enp-text);margin:0 0 1.5rem">Choose a Mentor</h3>
+    <div style="display:grid;gap:.75rem">
+      {% for m in mentors %}
+      <div style="display:flex;align-items:center;gap:1rem;padding:1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:10px">
+        <div style="flex:1">
+          <div style="font-weight:600">{{ m.full_name }}</div>
+          <div style="color:var(--enp-muted);font-size:.85rem">{{ (m.tech_stack or '')[:100] }}</div>
+        </div>
+        <button class="enp-btn enp-btn--primary enp-btn--sm" onclick="pickMentor({{ m.id }})">Select</button>
+      </div>
+      {% endfor %}
+    </div>
+    <button class="enp-btn enp-btn--ghost" style="margin-top:1.5rem;width:100%" onclick="document.getElementById('pick-mentor-modal').style.display='none'">Cancel</button>
+  </div>
+</div>
+
+<!-- Change Mentor Modal -->
+<div id="change-mentor-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center">
+  <div style="background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;padding:2rem;max-width:480px;width:90%">
+    <h3 style="color:var(--enp-text);margin:0 0 1rem">Request Mentor Change</h3>
+    <textarea id="change-reason" style="width:100%;min-height:100px;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-size:.9rem;padding:.75rem;resize:vertical;font-family:inherit" placeholder="Please explain why you'd like to change your mentor..."></textarea>
+    <div style="display:flex;gap:.75rem;margin-top:1rem">
+      <button class="enp-btn enp-btn--primary" style="flex:1" onclick="requestMentorChange()">Submit Request</button>
+      <button class="enp-btn enp-btn--ghost" onclick="document.getElementById('change-mentor-modal').style.display='none'">Cancel</button>
+    </div>
+    <div id="change-msg" style="display:none;margin-top:.75rem;color:var(--enp-green);font-size:.9rem">Request submitted. Admin will review it.</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function saveSkills(){
+  const skills=document.getElementById('skills-input').value;
+  const r=await fetch('/student/api/update-skills',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tech_stack:skills})});
+  const d=await r.json();
+  const msg=document.getElementById('skills-msg');
+  msg.style.display='inline';
+  setTimeout(()=>msg.style.display='none',3000);
+}
+async function pickMentor(mentorId){
+  const r=await fetch('/student/api/pick-mentor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mentor_id:mentorId})});
+  const d=await r.json();
+  if(d.ok) location.reload();
+}
+async function requestMentorChange(){
+  const reason=document.getElementById('change-reason').value.trim();
+  if(!reason) return;
+  const r=await fetch('/student/api/request-mentor-change',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason})});
+  const d=await r.json();
+  if(d.ok){
+    document.getElementById('change-msg').style.display='block';
+    setTimeout(()=>document.getElementById('change-mentor-modal').style.display='none',2000);
+  }
+}
+function startPayment(planId){
+  const email='{{ user.email }}';
+  fetch('/api/payments/create-order',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({plan_id:planId,email})})
+  .then(r=>r.json()).then(d=>{
+    if(!d.ok){alert(d.error);return;}
+    const rzp=new Razorpay({
+      key:d.key_id,amount:d.amount,currency:d.currency,order_id:d.order_id,
+      name:'Enterns Tech',description:'Plan Upgrade',
+      handler:function(resp){
+        fetch('/api/payments/verify',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({...resp,payment_id:d.payment_id,email})})
+        .then(r=>r.json()).then(v=>{if(v.ok)location.href=v.redirect;else alert(v.error);});
+      },
+      prefill:{email},theme:{color:'#22D3EE'}
+    });
+    rzp.open();
+  });
+}
+</script>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+{% endblock %}

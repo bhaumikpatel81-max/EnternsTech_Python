@@ -1,0 +1,241 @@
+/* Psychometric Assessment — Candidate styles ─────────────────────────────── */
+
+.psy-step {
+  min-height: 100vh;
+  background: var(--enp-bg);
+}
+
+.psy-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem 1.5rem;
+}
+
+.psy-card {
+  background: var(--enp-surface);
+  border: 1px solid var(--enp-border);
+  border-radius: 20px;
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 560px;
+  text-align: left;
+}
+.psy-card h1, .psy-card h2 { color: var(--enp-text); margin: 0 0 1rem; }
+
+.psy-logo {
+  color: var(--enp-cyan);
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+  text-align: center;
+  width: 100%;
+}
+
+/* Spinner */
+.psy-spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--enp-border);
+  border-top-color: var(--enp-cyan);
+  border-radius: 50%;
+  animation: spin .75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Details form */
+.psy-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.psy-fgroup { margin-bottom: 0; }
+.psy-fgroup label {
+  display: block;
+  color: var(--enp-muted);
+  font-size: .82rem;
+  margin-bottom: .3rem;
+}
+.psy-fgroup input, .psy-fgroup select {
+  width: 100%;
+  padding: .65rem 1rem;
+  background: #0a0f1e;
+  border: 1px solid var(--enp-border);
+  border-radius: 8px;
+  color: var(--enp-text);
+  font-family: inherit;
+  font-size: .9rem;
+  outline: none;
+}
+.psy-fgroup input:focus, .psy-fgroup select:focus { border-color: var(--enp-cyan); }
+
+/* Question items */
+.psy-item {
+  background: var(--enp-surface);
+  border: 1px solid var(--enp-border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  transition: border-color .15s;
+}
+.psy-item:focus-within { border-color: var(--enp-cyan-dim); }
+.psy-item__question {
+  font-size: 1rem;
+  color: var(--enp-text);
+  margin-bottom: 1.25rem;
+  line-height: 1.6;
+}
+.psy-item__num {
+  color: var(--enp-muted);
+  font-size: .8rem;
+  margin-bottom: .3rem;
+}
+
+/* Likert scale */
+.psy-likert {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+.psy-likert label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .4rem;
+  cursor: pointer;
+  flex: 1;
+  min-width: 50px;
+}
+.psy-likert input[type="radio"] { display: none; }
+.psy-likert-opt {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--enp-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: .85rem;
+  color: var(--enp-muted);
+  transition: all .15s;
+  cursor: pointer;
+}
+.psy-likert input[type="radio"]:checked + .psy-likert-opt {
+  border-color: var(--enp-cyan);
+  background: var(--enp-cyan);
+  color: #05080f;
+}
+.psy-likert label span { font-size: .72rem; color: var(--enp-muted); text-align: center; }
+.psy-likert-labels {
+  display: flex;
+  justify-content: space-between;
+  color: var(--enp-muted);
+  font-size: .75rem;
+  margin-top: .3rem;
+  padding: 0 4px;
+}
+
+/* MCQ / Forced choice */
+.psy-options { display: flex; flex-direction: column; gap: .6rem; }
+.psy-option {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem 1rem;
+  background: #0a0f1e;
+  border: 1px solid var(--enp-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.psy-option:hover { border-color: var(--enp-cyan-dim); }
+.psy-option input[type="radio"] { display: none; }
+.psy-option-dot {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--enp-border);
+  flex-shrink: 0;
+  transition: all .15s;
+}
+.psy-option input[type="radio"]:checked ~ .psy-option-label { color: var(--enp-text); }
+.psy-option:has(input:checked) {
+  border-color: var(--enp-cyan);
+  background: rgba(34,211,238,.06);
+}
+.psy-option:has(input:checked) .psy-option-dot {
+  border-color: var(--enp-cyan);
+  background: var(--enp-cyan);
+}
+.psy-option-label { color: var(--enp-muted); font-size: .95rem; transition: color .15s; }
+
+/* Rank */
+.psy-rank { display: flex; flex-direction: column; gap: .5rem; }
+.psy-rank-item {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem 1rem;
+  background: #0a0f1e;
+  border: 1px solid var(--enp-border);
+  border-radius: 8px;
+}
+.psy-rank-num {
+  font-size: .8rem;
+  color: var(--enp-muted);
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.psy-rank-label { color: var(--enp-text); flex: 1; font-size: .9rem; }
+.psy-rank-select {
+  padding: .3rem .6rem;
+  background: var(--enp-surface);
+  border: 1px solid var(--enp-border);
+  border-radius: 6px;
+  color: var(--enp-text);
+  font-family: inherit;
+  font-size: .85rem;
+  width: 60px;
+}
+
+/* Open text */
+.psy-open-textarea {
+  width: 100%;
+  min-height: 100px;
+  background: #0a0f1e;
+  border: 1px solid var(--enp-border);
+  border-radius: 8px;
+  color: var(--enp-text);
+  font-family: inherit;
+  font-size: .95rem;
+  padding: .75rem 1rem;
+  resize: vertical;
+  outline: none;
+  transition: border-color .15s;
+}
+.psy-open-textarea:focus { border-color: var(--enp-cyan); }
+
+/* Review summary */
+.psy-review-section {
+  background: var(--enp-surface);
+  border: 1px solid var(--enp-border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: .75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.psy-review-section .sec-name { font-weight: 600; color: var(--enp-text); }
+.psy-review-section .sec-answered { color: var(--enp-muted); font-size: .85rem; }
+.psy-review-section .sec-tick { color: var(--enp-green); font-size: 1.2rem; }
+.psy-review-section.incomplete { border-color: rgba(251,191,36,.3); }
+.psy-review-section.incomplete .sec-tick { color: var(--enp-gold); }
+
+@media (max-width: 600px) {
+  .psy-form-grid { grid-template-columns: 1fr; }
+  .psy-likert { gap: .35rem; }
+  .psy-likert-opt { width: 34px; height: 34px; font-size: .8rem; }
+}

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Psychometric Assessment — Enterns Tech</title>
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <link rel="stylesheet" href="/static/css/portal.css">
+  <link rel="stylesheet" href="/static/css/psychometric.css">
+</head>
+<body>
+  <div id="psy-app">
+    <!-- Step: loading -->
+    <div id="step-loading" class="psy-step" style="display:flex">
+      <div class="psy-center">
+        <div class="psy-spinner"></div>
+        <p style="color:var(--enp-muted);margin-top:1rem">Validating your link…</p>
+      </div>
+    </div>
+
+    <!-- Step: invalid -->
+    <div id="step-invalid" class="psy-step" style="display:none">
+      <div class="psy-center psy-card">
+        <h2 style="color:var(--enp-red)">Invalid Link</h2>
+        <p id="invalid-msg" style="color:var(--enp-muted)">This assessment link is invalid or has expired.</p>
+        <a href="/" class="enp-btn enp-btn--ghost" style="margin-top:1rem">Back to Home</a>
+      </div>
+    </div>
+
+    <!-- Step: submitted (already done) -->
+    <div id="step-submitted" class="psy-step" style="display:none">
+      <div class="psy-center psy-card" style="text-align:center">
+        <div style="font-size:3rem;margin-bottom:1rem">✓</div>
+        <h2 style="color:var(--enp-green)">Already Submitted</h2>
+        <p style="color:var(--enp-muted)">This assessment has already been completed. Thank you!</p>
+      </div>
+    </div>
+
+    <!-- Step: welcome -->
+    <div id="step-welcome" class="psy-step" style="display:none">
+      <div class="psy-center psy-card">
+        <div class="psy-logo">Enterns Tech</div>
+        <h1>Psychometric Assessment</h1>
+        <p style="color:var(--enp-muted);line-height:1.7;max-width:480px;margin:0 auto 1.5rem">
+          This assessment has <strong>8 sections</strong> and takes approximately
+          <strong>25–30 minutes</strong> to complete. Find a quiet place and work
+          through each section at your own pace. Your responses are confidential.
+        </p>
+        <ul style="text-align:left;color:var(--enp-muted);list-style:none;padding:0;margin:0 0 1.5rem;max-width:400px">
+          <li style="padding:.3rem 0">✔ Work through all sections in one sitting</li>
+          <li style="padding:.3rem 0">✔ Answer honestly — there are no right or wrong answers</li>
+          <li style="padding:.3rem 0">✔ Your progress is saved automatically</li>
+        </ul>
+        <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer;color:var(--enp-muted);font-size:.9rem;margin-bottom:1.5rem">
+          <input type="checkbox" id="consent-check" style="width:16px;height:16px;cursor:pointer">
+          I agree that my responses will be used for candidate assessment purposes
+        </label>
+        <button id="begin-btn" class="enp-btn enp-btn--primary" style="padding:.8rem 2.5rem;font-size:1rem" disabled>Begin Assessment →</button>
+      </div>
+    </div>
+
+    <!-- Step: details -->
+    <div id="step-details" class="psy-step" style="display:none">
+      <div class="psy-center psy-card" style="max-width:560px">
+        <h2>Your Details</h2>
+        <p style="color:var(--enp-muted);margin-bottom:1.5rem">Please confirm or update your information.</p>
+        <div class="psy-form-grid">
+          <div class="psy-fgroup"><label>Full Name</label><input type="text" id="det-name" required></div>
+          <div class="psy-fgroup"><label>Email</label><input type="email" id="det-email" required></div>
+          <div class="psy-fgroup"><label>Phone</label><input type="tel" id="det-phone"></div>
+          <div class="psy-fgroup"><label>Education Level</label>
+            <select id="det-edu">
+              <option value="1">1 — School Leaver / A-Levels</option>
+              <option value="2">2 — Undergraduate Student</option>
+              <option value="3">3 — Graduate (Bachelor's)</option>
+              <option value="4">4 — Postgraduate / PhD</option>
+            </select>
+          </div>
+          <div class="psy-fgroup" style="grid-column:1/-1"><label>Field of Study / Career</label>
+            <select id="det-field">
+              <option value="IT">IT / Software Engineering</option>
+              <option value="DATA_AI">Data Science & AI</option>
+              <option value="FINANCE">Finance</option>
+              <option value="MARKETING">Marketing</option>
+              <option value="ALL">Other / General</option>
+            </select>
+          </div>
+        </div>
+        <div id="det-err" style="display:none;color:var(--enp-red);font-size:.9rem;margin-top:.75rem"></div>
+        <button class="enp-btn enp-btn--primary" style="margin-top:1.5rem;width:100%" onclick="submitDetails()">Continue →</button>
+      </div>
+    </div>
+
+    <!-- Step: runner -->
+    <div id="step-runner" class="psy-step" style="display:none">
+      <!-- Progress bar -->
+      <div style="position:fixed;top:0;left:0;right:0;height:3px;background:var(--enp-border);z-index:100">
+        <div id="progress-bar" style="height:100%;background:var(--enp-cyan);transition:width .3s;width:0%"></div>
+      </div>
+      <div style="max-width:760px;margin:0 auto;padding:3rem 1.5rem">
+        <div id="section-header" style="margin-bottom:2rem">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+            <div>
+              <span id="section-badge" class="enp-badge enp-badge--info" style="margin-bottom:.5rem"></span>
+              <h2 id="section-title" style="margin:0;color:var(--enp-text)"></h2>
+            </div>
+            <div style="color:var(--enp-muted);font-size:.85rem" id="section-progress"></div>
+          </div>
+        </div>
+        <div id="items-container"></div>
+        <div style="display:flex;justify-content:space-between;gap:.75rem;margin-top:2rem">
+          <button id="prev-btn" class="enp-btn enp-btn--ghost" onclick="prevSection()" style="display:none">← Back</button>
+          <button id="next-btn" class="enp-btn enp-btn--primary" onclick="nextSection()" style="margin-left:auto">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step: review -->
+    <div id="step-review" class="psy-step" style="display:none">
+      <div style="max-width:640px;margin:0 auto;padding:3rem 1.5rem">
+        <h2 style="color:var(--enp-text)">Review Your Answers</h2>
+        <p style="color:var(--enp-muted)">You've completed all sections. Review below and submit when ready.</p>
+        <div id="review-summary" style="margin:1.5rem 0"></div>
+        <div style="display:flex;gap:.75rem;margin-top:2rem">
+          <button class="enp-btn enp-btn--ghost" onclick="goToSection(0)">← Edit Answers</button>
+          <button class="enp-btn enp-btn--primary" style="flex:1" onclick="submitAssessment()">Submit Assessment →</button>
+        </div>
+        <div id="submit-error" style="display:none;color:var(--enp-red);font-size:.9rem;margin-top:.75rem"></div>
+      </div>
+    </div>
+
+    <!-- Step: thankyou -->
+    <div id="step-thankyou" class="psy-step" style="display:none">
+      <div class="psy-center psy-card" style="text-align:center">
+        <div style="font-size:4rem;margin-bottom:1rem">🎉</div>
+        <h1 style="color:var(--enp-green)">Assessment Submitted!</h1>
+        <p style="color:var(--enp-muted);max-width:400px;margin:0 auto 1.5rem">
+          Thank you for completing the assessment. Our team will review your results and be in touch soon.
+        </p>
+        <a href="/" class="enp-btn enp-btn--ghost">Back to Home</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/psychometric.js"></script>
+  <script>
+    // Boot: read token from URL and start
+    const TOKEN = new URLSearchParams(location.search).get('t') || '';
+    initAssessment(TOKEN);
+  </script>
+</body>
+</html>

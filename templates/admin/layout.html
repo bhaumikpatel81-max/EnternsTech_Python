@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Admin — Enterns Tech{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/portal.css">
+  <style>
+    :root{--sidebar-w:220px}
+    body{display:flex;min-height:100vh;background:var(--enp-bg)}
+    .sidebar{width:var(--sidebar-w);background:var(--enp-surface);border-right:1px solid var(--enp-border);
+             position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:50}
+    .sidebar-logo{padding:1.25rem 1.5rem;border-bottom:1px solid var(--enp-border)}
+    .sidebar-logo a{color:var(--enp-cyan);font-weight:700;font-size:1.1rem;text-decoration:none}
+    .sidebar-logo span{display:block;color:var(--enp-muted);font-size:.75rem;margin-top:.2rem}
+    .sidebar-nav{padding:.75rem 0}
+    .sidebar-nav a{display:flex;align-items:center;gap:.6rem;padding:.65rem 1.5rem;color:var(--enp-muted);
+                   text-decoration:none;font-size:.9rem;transition:all .15s;border-left:2px solid transparent}
+    .sidebar-nav a:hover{color:var(--enp-text);background:rgba(255,255,255,.03)}
+    .sidebar-nav a.active{color:var(--enp-cyan);border-left-color:var(--enp-cyan);background:rgba(34,211,238,.05)}
+    .sidebar-nav .icon{font-size:1rem;width:18px;text-align:center}
+    .sidebar-footer{position:absolute;bottom:0;left:0;right:0;padding:1rem 1.5rem;border-top:1px solid var(--enp-border)}
+    .main{margin-left:var(--sidebar-w);flex:1;min-height:100vh}
+    .topbar{background:var(--enp-surface);border-bottom:1px solid var(--enp-border);padding:1rem 2rem;
+            display:flex;align-items:center;justify-content:space-between}
+    .topbar h1{font-size:1.2rem;margin:0;color:var(--enp-text)}
+    .content{padding:2rem}
+    @media(max-width:768px){
+      .sidebar{transform:translateX(-100%)}
+      .main{margin-left:0}
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <a href="/admin">Enterns Tech</a>
+      <span>Admin Portal</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/admin" class="{% if section=='overview' %}active{% endif %}">
+        <span class="icon">📊</span>Overview</a>
+      <a href="/admin/students" class="{% if section=='students' %}active{% endif %}">
+        <span class="icon">🎓</span>Students</a>
+      <a href="/admin/mentors" class="{% if section=='mentors' %}active{% endif %}">
+        <span class="icon">👤</span>Mentors</a>
+      <a href="/admin/mentors?tab=pending" class="{% if section=='mentors' and tab=='pending' %}active{% endif %}">
+        <span class="icon">📋</span>Applications</a>
+      <a href="/admin/payments" class="{% if section=='payments' %}active{% endif %}">
+        <span class="icon">💳</span>Payments</a>
+      <a href="/admin/sessions" class="{% if section=='sessions' %}active{% endif %}">
+        <span class="icon">📅</span>Sessions</a>
+      <a href="/admin/requests" class="{% if section=='requests' %}active{% endif %}">
+        <span class="icon">🔄</span>Requests</a>
+      <a href="/admin/assessments" class="{% if section=='assessments' %}active{% endif %}">
+        <span class="icon">🧪</span>Assessments</a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="/logout" style="color:var(--enp-muted);font-size:.85rem;text-decoration:none">← Sign Out</a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h1>{% block page_title %}Admin{% endblock %}</h1>
+      <span style="color:var(--enp-muted);font-size:.85rem">admin@enternstech.com</span>
+    </div>
+    <div class="content">
+      {% block body %}{% endblock %}
+    </div>
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

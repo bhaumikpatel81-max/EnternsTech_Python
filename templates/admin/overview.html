@@ -1,0 +1,76 @@
+{% extends "admin/layout.html" %}
+{% block title %}Overview — Admin{% endblock %}
+{% block page_title %}Overview{% endblock %}
+
+{% block body %}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem;margin-bottom:2rem">
+  {% for key, label, color in [
+    ('students','Active Students','var(--enp-cyan)'),
+    ('mentors','Approved Mentors','var(--enp-green)'),
+    ('pending_mentors','Pending Applications','var(--enp-gold)'),
+    ('sessions','Total Sessions','var(--enp-text)'),
+    ('open_requests','Open Requests','var(--enp-red)'),
+    ('assessments','Assessments','#a78bfa'),
+  ] %}
+  <div class="enp-card">
+    <div style="padding:1.25rem">
+      <div style="color:var(--enp-muted);font-size:.8rem;margin-bottom:.4rem">{{ label | upper }}</div>
+      <div style="font-size:2.2rem;font-weight:700;color:{{ color }}">{{ stats[key] }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+  <div class="enp-card">
+    <div class="enp-card__header"><h2 class="enp-card__title">Quick Actions</h2></div>
+    <div class="enp-card__body" style="display:flex;flex-direction:column;gap:.75rem">
+      <a href="/admin/students" class="enp-btn enp-btn--ghost">Manage Students →</a>
+      <a href="/admin/mentors?tab=pending" class="enp-btn enp-btn--ghost">Review Applications →</a>
+      <a href="/admin/assessments?tab=generate" class="enp-btn enp-btn--primary">Generate Assessment Link →</a>
+    </div>
+  </div>
+  <div class="enp-card">
+    <div class="enp-card__header"><h2 class="enp-card__title">Activate Student Manually</h2></div>
+    <div class="enp-card__body">
+      <form id="activate-form">
+        <div style="margin-bottom:.75rem">
+          <input type="email" id="act-email" placeholder="student@email.com"
+                 style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);
+                        border-radius:8px;color:var(--enp-text);font-size:.9rem;font-family:inherit;outline:none">
+        </div>
+        <div style="margin-bottom:.75rem">
+          <select id="act-plan" style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);
+                  border-radius:8px;color:var(--enp-text);font-size:.9rem;font-family:inherit">
+            <option value="basic">Basic Plan</option>
+            <option value="elite">Elite Plan</option>
+            <option value="premium">Premium Plan</option>
+            <option value="accelerator">Career Accelerator</option>
+            <option value="starter">Career Starter</option>
+          </select>
+        </div>
+        <button type="button" class="enp-btn enp-btn--primary enp-btn--sm" onclick="activateStudent()">Activate</button>
+        <span id="act-msg" style="display:none;margin-left:.75rem;font-size:.85rem"></span>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function activateStudent(){
+  const email=document.getElementById('act-email').value.trim();
+  const plan=document.getElementById('act-plan').value;
+  const msg=document.getElementById('act-msg');
+  if(!email){return;}
+  const fd=new FormData();fd.append('email',email);fd.append('plan_id',plan);
+  const r=await fetch('/admin/students/activate',{method:'POST',body:fd});
+  const d=await r.json();
+  msg.style.display='inline';
+  if(d.ok){msg.style.color='var(--enp-green)';msg.textContent='Student activated!';}
+  else{msg.style.color='var(--enp-red)';msg.textContent=d.error||'Error';}
+  setTimeout(()=>msg.style.display='none',4000);
+}
+</script>
+{% endblock %}

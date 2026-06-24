@@ -1,0 +1,123 @@
+{% extends "admin/layout.html" %}
+{% block title %}Mentors — Admin{% endblock %}
+{% block page_title %}Mentors & Applications{% endblock %}
+
+{% block body %}
+<div style="display:flex;gap:.75rem;margin-bottom:1.5rem">
+  <a href="/admin/mentors" class="enp-btn {% if tab=='approved' %}enp-btn--primary{% else %}enp-btn--ghost{% endif %} enp-btn--sm">Approved</a>
+  <a href="/admin/mentors?tab=pending" class="enp-btn {% if tab=='pending' %}enp-btn--primary{% else %}enp-btn--ghost{% endif %} enp-btn--sm">Pending Applications</a>
+</div>
+
+<div class="enp-card">
+  <div class="enp-card__body" style="padding:0;overflow-x:auto">
+    <table class="enp-table" style="min-width:600px">
+      <thead>
+        {% if tab == 'pending' %}
+        <tr><th>Applicant</th><th>Tech Stack</th><th>Slots</th><th>Applied</th><th>Actions</th></tr>
+        {% else %}
+        <tr><th>Mentor</th><th>Tech Stack</th><th>Rate/Session</th><th>Slots</th><th>Actions</th></tr>
+        {% endif %}
+      </thead>
+      <tbody>
+        {% for m in mentors %}
+        <tr>
+          <td>
+            <div style="font-weight:500">{{ m.full_name }}</div>
+            <div style="color:var(--enp-muted);font-size:.8rem">{{ m.email }}</div>
+            {% if m.linkedin %}<div><a href="{{ m.linkedin }}" target="_blank" style="color:var(--enp-cyan);font-size:.8rem">LinkedIn ↗</a></div>{% endif %}
+          </td>
+          <td style="max-width:200px;color:var(--enp-muted);font-size:.85rem">{{ (m.tech_stack or '')[:120] }}</td>
+          {% if tab == 'pending' %}
+          <td>{{ m.available_slots }}</td>
+          <td style="color:var(--enp-muted);font-size:.8rem">{{ m.created_at.strftime('%d %b %Y') if m.created_at else '' }}</td>
+          <td>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+              <button class="enp-btn enp-btn--primary enp-btn--sm" onclick="approveMentor({{ m.id }})">Approve</button>
+              <button class="enp-btn enp-btn--ghost enp-btn--sm" onclick="showInfoRequest({{ m.id }})">More Info</button>
+              <button class="enp-btn enp-btn--danger enp-btn--sm" onclick="rejectMentor({{ m.id }})">Reject</button>
+            </div>
+          </td>
+          {% else %}
+          <td>₹{{ m.rate_per_session }} <button class="enp-btn enp-btn--ghost enp-btn--sm" onclick="editRate({{ m.id }},{{ m.rate_per_session }})">Edit</button></td>
+          <td>{{ m.available_slots }}</td>
+          <td><a href="mailto:{{ m.email }}" class="enp-btn enp-btn--ghost enp-btn--sm">Email</a></td>
+          {% endif %}
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="text-align:center;color:var(--enp-muted);padding:2rem">No records.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Info Request Modal -->
+<div id="info-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center">
+  <div style="background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;padding:2rem;max-width:480px;width:90%">
+    <h3 style="margin:0 0 1rem;color:var(--enp-text)">Request More Information</h3>
+    <textarea id="info-questions" placeholder="Enter your questions here…"
+              style="width:100%;min-height:100px;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;
+                     color:var(--enp-text);font-size:.9rem;padding:.75rem;resize:vertical;font-family:inherit"></textarea>
+    <input type="hidden" id="info-mentor-id">
+    <div style="display:flex;gap:.75rem;margin-top:1rem">
+      <button class="enp-btn enp-btn--primary" style="flex:1" onclick="sendInfoRequest()">Send</button>
+      <button class="enp-btn enp-btn--ghost" onclick="document.getElementById('info-modal').style.display='none'">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Rate Modal -->
+<div id="rate-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center">
+  <div style="background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;padding:2rem;max-width:360px;width:90%">
+    <h3 style="margin:0 0 1rem;color:var(--enp-text)">Update Rate</h3>
+    <form id="rate-form" method="POST" action="/admin/mentors/update-rate">
+      <input type="hidden" name="mentor_id" id="rate-mentor-id">
+      <input type="number" name="rate_per_session" id="rate-input" min="0" step="100"
+             style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit;margin-bottom:1rem">
+      <div style="display:flex;gap:.75rem">
+        <button type="submit" class="enp-btn enp-btn--primary" style="flex:1">Save</button>
+        <button type="button" class="enp-btn enp-btn--ghost" onclick="document.getElementById('rate-modal').style.display='none'">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function approveMentor(id){
+  if(!confirm('Approve this mentor and send set-password email?'))return;
+  const fd=new FormData();fd.append('mentor_id',id);
+  const r=await fetch('/admin/mentors/approve',{method:'POST',body:fd});
+  const d=await r.json();
+  if(d.ok)location.reload(); else alert(d.error);
+}
+async function rejectMentor(id){
+  const note=prompt('Rejection reason (optional):');
+  if(note===null)return;
+  const fd=new FormData();fd.append('mentor_id',id);fd.append('admin_note',note);
+  const r=await fetch('/admin/mentors/reject',{method:'POST',body:fd});
+  const d=await r.json();
+  if(d.ok)location.reload(); else alert(d.error);
+}
+function showInfoRequest(id){
+  document.getElementById('info-mentor-id').value=id;
+  document.getElementById('info-modal').style.display='flex';
+}
+async function sendInfoRequest(){
+  const id=document.getElementById('info-mentor-id').value;
+  const q=document.getElementById('info-questions').value.trim();
+  if(!q)return;
+  const fd=new FormData();fd.append('mentor_id',id);fd.append('admin_note',q);
+  const r=await fetch('/admin/mentors/request-info',{method:'POST',body:fd});
+  const d=await r.json();
+  if(d.ok){document.getElementById('info-modal').style.display='none';location.reload();}
+  else alert(d.error);
+}
+function editRate(id,current){
+  document.getElementById('rate-mentor-id').value=id;
+  document.getElementById('rate-input').value=current;
+  document.getElementById('rate-modal').style.display='flex';
+}
+</script>
+{% endblock %}

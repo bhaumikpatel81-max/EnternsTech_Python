@@ -1,0 +1,143 @@
+{% extends "admin/layout.html" %}
+{% block title %}Assessments — Admin{% endblock %}
+{% block page_title %}Psychometric Assessments{% endblock %}
+
+{% block head %}
+<style>
+  .tab-btn{padding:.5rem 1.25rem;border-radius:8px;border:1px solid var(--enp-border);background:transparent;
+           color:var(--enp-muted);cursor:pointer;font-family:inherit;font-size:.9rem;transition:all .15s}
+  .tab-btn.active,.tab-btn:hover{background:var(--enp-cyan);color:#05080f;border-color:var(--enp-cyan)}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+  .form-group label{display:block;color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem}
+  .form-group input,.form-group select{width:100%;padding:.65rem 1rem;background:#0a0f1e;
+    border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit;outline:none}
+  .result-box{background:#0a0f1e;border:1px solid var(--enp-border);border-radius:10px;padding:1rem;margin-top:1rem}
+  .result-url{word-break:break-all;color:var(--enp-cyan);font-size:.9rem}
+</style>
+{% endblock %}
+
+{% block body %}
+<div style="display:flex;gap:.75rem;margin-bottom:1.5rem">
+  <button class="tab-btn {% if tab=='list' %}active{% endif %}" onclick="showTab('list')">Assessment List</button>
+  <button class="tab-btn {% if tab=='generate' %}active{% endif %}" onclick="showTab('generate')">Generate Link</button>
+</div>
+
+<!-- List tab -->
+<div id="tab-list" style="display:{% if tab=='generate' %}none{% else %}block{% endif %}">
+  <div class="enp-card">
+    <div class="enp-card__body" style="padding:0;overflow-x:auto">
+      <table class="enp-table" style="min-width:650px">
+        <thead><tr><th>Candidate</th><th>Region</th><th>Field</th><th>Status</th><th>Expires</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for a in assessments %}
+          <tr>
+            <td>
+              <div style="font-weight:500">{{ a.candidate_name or '(no name yet)' }}</div>
+              <div style="color:var(--enp-muted);font-size:.8rem">{{ a.candidate_email or '—' }}</div>
+            </td>
+            <td>{{ a.region }}</td>
+            <td>{{ a.field or '—' }}</td>
+            <td><span class="enp-badge {% if a.status=='submitted' %}enp-badge--success{% elif a.status=='in_progress' %}enp-badge--warn{% else %}enp-badge--info{% endif %}">{{ a.status | title }}</span></td>
+            <td style="font-size:.82rem;color:var(--enp-muted)">{{ a.expires_at.strftime('%d %b %Y') if a.expires_at else '' }}</td>
+            <td>
+              {% if a.status == 'submitted' %}
+              <a href="/admin/assessments/{{ a.id }}" class="enp-btn enp-btn--primary enp-btn--sm">View Result</a>
+              {% else %}
+              <button class="enp-btn enp-btn--ghost enp-btn--sm" onclick="sendLink({{ a.id }})">Send Email</button>
+              <button class="enp-btn enp-btn--ghost enp-btn--sm" onclick="copyLink('{{ a.token }}')">Copy Link</button>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" style="text-align:center;color:var(--enp-muted);padding:2rem">No assessments yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Generate tab -->
+<div id="tab-generate" style="display:{% if tab=='generate' %}block{% else %}none{% endif %}">
+  <div class="enp-card" style="max-width:600px">
+    <div class="enp-card__header"><h2 class="enp-card__title">Generate Assessment Link</h2></div>
+    <div class="enp-card__body">
+      <form id="gen-form">
+        <div class="form-grid">
+          <div class="form-group"><label>Candidate Name</label><input type="text" name="candidate_name" required></div>
+          <div class="form-group"><label>Candidate Email</label><input type="email" name="candidate_email" required></div>
+          <div class="form-group"><label>Phone (optional)</label><input type="text" name="candidate_phone"></div>
+          <div class="form-group"><label>Payment Ref</label><input type="text" name="payment_ref"></div>
+          <div class="form-group"><label>Region</label>
+            <select name="region">
+              <option value="UK">UK</option><option value="US">US</option>
+              <option value="CA">Canada</option><option value="IN">India</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Education Level</label>
+            <select name="education_level">
+              <option value="1">1 — School Leaver</option><option value="2" selected>2 — Undergraduate</option>
+              <option value="3">3 — Graduate</option><option value="4">4 — Postgraduate+</option>
+            </select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1"><label>Field</label>
+            <select name="field">
+              <option value="IT">IT / Software</option><option value="DATA_AI">Data & AI</option>
+              <option value="FINANCE">Finance</option><option value="MARKETING">Marketing</option>
+              <option value="ALL">General</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:1.25rem;display:flex;gap:.75rem;align-items:center">
+          <button type="button" class="enp-btn enp-btn--primary" onclick="generateLink()">Generate Link</button>
+          <span id="gen-loading" style="display:none;color:var(--enp-muted);font-size:.9rem">Generating…</span>
+        </div>
+      </form>
+      <div id="gen-result" class="result-box" style="display:none">
+        <div style="color:var(--enp-muted);font-size:.8rem;margin-bottom:.5rem">ASSESSMENT LINK</div>
+        <div class="result-url" id="gen-url"></div>
+        <div style="display:flex;gap:.75rem;margin-top:.75rem">
+          <button class="enp-btn enp-btn--ghost enp-btn--sm" onclick="navigator.clipboard.writeText(document.getElementById('gen-url').textContent)">Copy Link</button>
+          <button class="enp-btn enp-btn--primary enp-btn--sm" id="send-link-btn">Send Email</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showTab(tab){
+  document.getElementById('tab-list').style.display=tab==='list'?'block':'none';
+  document.getElementById('tab-generate').style.display=tab==='generate'?'block':'none';
+}
+let _lastAssessmentId=null;
+async function generateLink(){
+  const form=document.getElementById('gen-form');
+  const fd=new FormData(form);
+  document.getElementById('gen-loading').style.display='inline';
+  const r=await fetch('/admin/assessments/generate-link',{method:'POST',body:fd});
+  const d=await r.json();
+  document.getElementById('gen-loading').style.display='none';
+  if(!d.ok){alert(d.error);return;}
+  _lastAssessmentId=d.assessment_id;
+  document.getElementById('gen-url').textContent=d.url;
+  document.getElementById('gen-result').style.display='block';
+}
+async function sendLink(id){
+  const fd=new FormData();fd.append('assessment_id',id);
+  const r=await fetch('/admin/assessments/send-link',{method:'POST',body:fd});
+  const d=await r.json();
+  alert(d.ok?'Email sent!':'Failed: '+(d.error||'unknown error'));
+}
+function copyLink(token){
+  const base=window.location.origin;
+  navigator.clipboard.writeText(base+'/assessment?t='+token);
+  alert('Link copied!');
+}
+document.getElementById('send-link-btn')?.addEventListener('click',()=>{
+  if(_lastAssessmentId) sendLink(_lastAssessmentId);
+});
+</script>
+{% endblock %}

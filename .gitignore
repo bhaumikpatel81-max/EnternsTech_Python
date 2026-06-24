@@ -15,6 +15,22 @@ wp-config.php
 .env
 admin-portal/config.php
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Never commit secrets
+.env
+*.env
+
+# Uploads
+public/uploads/
+
 # Local archives
 *.zip
 !enternstech-wordpress-theme.zip

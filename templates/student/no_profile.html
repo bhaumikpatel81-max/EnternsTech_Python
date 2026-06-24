@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Student Portal — Enterns Tech{% endblock %}
+
+{% block nav_links %}
+  <form action="/logout" method="get" style="margin:0">
+    <button class="logout-btn">Sign Out</button>
+  </form>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap" style="text-align:center;padding-top:5rem">
+  <h2 style="color:var(--enp-text)">Profile Setup Required</h2>
+  <p style="color:var(--enp-muted)">Your account has been created but your student profile is not yet set up.<br>
+  Please contact <a href="mailto:admin@enternstech.com" style="color:var(--enp-cyan)">admin@enternstech.com</a>.</p>
+</div>
+{% endblock %}

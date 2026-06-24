@@ -1,0 +1,106 @@
+{% extends "admin/layout.html" %}
+{% block title %}Students — Admin{% endblock %}
+{% block page_title %}Students{% endblock %}
+
+{% block body %}
+<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+  <form style="flex:1;display:flex;gap:.75rem">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search by name or email…"
+           style="flex:1;padding:.65rem 1rem;background:var(--enp-surface);border:1px solid var(--enp-border);
+                  border-radius:8px;color:var(--enp-text);font-family:inherit;outline:none">
+    <button type="submit" class="enp-btn enp-btn--primary enp-btn--sm">Search</button>
+  </form>
+</div>
+
+<div class="enp-card">
+  <div class="enp-card__body" style="padding:0;overflow-x:auto">
+    <table class="enp-table" style="min-width:700px">
+      <thead>
+        <tr>
+          <th>Student</th><th>Plan</th><th>Sessions</th><th>Mentor</th><th>Status</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in students %}
+        <tr>
+          <td>
+            <div style="font-weight:500">{{ s.full_name or '(unnamed)' }}</div>
+            <div style="color:var(--enp-muted);font-size:.8rem">{{ s.email }}</div>
+          </td>
+          <td>
+            {% if plan_catalog.get(s.plan_id) %}
+              <span class="enp-badge enp-badge--info">{{ plan_catalog[s.plan_id].name }}</span>
+            {% else %}
+              <span class="enp-badge">{{ s.plan_id }}</span>
+            {% endif %}
+          </td>
+          <td>{{ s.sessions_used }}/{{ s.sessions_total }}
+            <button class="enp-btn enp-btn--ghost enp-btn--sm" style="margin-left:.4rem"
+                    onclick="editSessions({{ s.id }}, {{ s.sessions_total }})">Edit</button>
+          </td>
+          <td>{{ s.mentor_name or '—' }}
+            <button class="enp-btn enp-btn--ghost enp-btn--sm" style="margin-left:.4rem"
+                    onclick="assignMentor({{ s.id }})">Assign</button>
+          </td>
+          <td><span class="enp-badge {% if s.status=='active' %}enp-badge--success{% else %}enp-badge--warn{% endif %}">{{ s.status | title }}</span></td>
+          <td>
+            <a href="mailto:{{ s.email }}" class="enp-btn enp-btn--ghost enp-btn--sm">Email</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align:center;color:var(--enp-muted);padding:2rem">No students found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Assign Mentor Modal -->
+<div id="assign-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center">
+  <div style="background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;padding:2rem;max-width:400px;width:90%">
+    <h3 style="margin:0 0 1rem;color:var(--enp-text)">Assign Mentor</h3>
+    <form id="assign-form" method="POST" action="/admin/students/assign-mentor">
+      <input type="hidden" name="student_id" id="assign-student-id">
+      <select name="mentor_id" style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit;margin-bottom:1rem">
+        {% for m in mentors %}
+        <option value="{{ m.id }}">{{ m.full_name }}</option>
+        {% endfor %}
+      </select>
+      <div style="display:flex;gap:.75rem">
+        <button type="submit" class="enp-btn enp-btn--primary" style="flex:1">Assign</button>
+        <button type="button" class="enp-btn enp-btn--ghost" onclick="document.getElementById('assign-modal').style.display='none'">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Sessions Modal -->
+<div id="sessions-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center">
+  <div style="background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;padding:2rem;max-width:360px;width:90%">
+    <h3 style="margin:0 0 1rem;color:var(--enp-text)">Update Sessions</h3>
+    <form id="sessions-form" method="POST" action="/admin/students/update-sessions">
+      <input type="hidden" name="student_id" id="sessions-student-id">
+      <input type="number" name="sessions_total" id="sessions-total-input" min="1" max="20"
+             style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit;margin-bottom:1rem">
+      <div style="display:flex;gap:.75rem">
+        <button type="submit" class="enp-btn enp-btn--primary" style="flex:1">Update</button>
+        <button type="button" class="enp-btn enp-btn--ghost" onclick="document.getElementById('sessions-modal').style.display='none'">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function assignMentor(sid){
+  document.getElementById('assign-student-id').value=sid;
+  document.getElementById('assign-modal').style.display='flex';
+}
+function editSessions(sid,current){
+  document.getElementById('sessions-student-id').value=sid;
+  document.getElementById('sessions-total-input').value=current;
+  document.getElementById('sessions-modal').style.display='flex';
+}
+</script>
+{% endblock %}

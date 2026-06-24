@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Become a Mentor — Enterns Tech</title>
+  <link rel="stylesheet" href="/static/css/portal.css">
+  <style>
+    body{background:var(--enp-bg)}
+    .nav{display:flex;align-items:center;justify-content:space-between;padding:1rem 2rem;
+         background:var(--enp-surface);border-bottom:1px solid var(--enp-border)}
+    .nav a{color:var(--enp-cyan);font-weight:700;font-size:1.1rem;text-decoration:none}
+    .page{max-width:680px;margin:3rem auto;padding:0 1.5rem}
+    .hero{margin-bottom:2.5rem}
+    .hero h1{font-size:2rem;margin:0 0 .75rem;color:var(--enp-text)}
+    .hero p{color:var(--enp-muted);line-height:1.7}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+    .form-group{margin-bottom:1rem}
+    .form-group label{display:block;color:var(--enp-muted);font-size:.85rem;margin-bottom:.35rem}
+    .form-group input,.form-group textarea,.form-group select{
+      width:100%;padding:.7rem 1rem;background:var(--enp-surface);
+      border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);
+      font-size:.95rem;font-family:inherit;outline:none;transition:border-color .15s}
+    .form-group input:focus,.form-group textarea:focus{border-color:var(--enp-cyan)}
+    .form-group.full{grid-column:1/-1}
+    .submit-btn{width:100%;padding:.85rem;background:var(--enp-cyan);color:#05080f;font-weight:700;
+                border:none;border-radius:10px;font-size:1rem;cursor:pointer;font-family:inherit;margin-top:.5rem}
+    .submit-btn:hover{opacity:.88}
+    .success-card{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);
+                  border-radius:16px;padding:2.5rem;text-align:center}
+    .success-card h2{color:var(--enp-green);margin:0 0 1rem}
+    .error-box{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);
+               color:var(--enp-red);padding:.75rem 1rem;border-radius:8px;margin-bottom:1rem;font-size:.9rem}
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/">Enterns Tech</a>
+    <a href="/login" style="color:var(--enp-muted);font-size:.9rem;text-decoration:none">Sign In</a>
+  </nav>
+
+  <div class="page">
+    <div class="hero">
+      <h1>Become a Mentor</h1>
+      <p>Share your expertise with aspiring tech professionals. Join our network of industry mentors and help students land their dream roles.</p>
+    </div>
+
+    {% if submitted %}
+    <div class="success-card">
+      <h2>Application Received!</h2>
+      <p style="color:var(--enp-muted)">Thank you for your application. Our team will review it and get back to you within 3–5 business days.</p>
+      <a href="/" style="display:inline-block;margin-top:1.5rem;color:var(--enp-cyan)">Back to Home</a>
+    </div>
+    {% else %}
+    {% if error %}
+    <div class="error-box">{{ error }}</div>
+    {% endif %}
+    <div class="enp-card">
+      <div class="enp-card__body">
+        <form method="POST" action="/partner/apply" enctype="multipart/form-data">
+          <div class="form-grid">
+            <div class="form-group"><label>Full Name *</label><input type="text" name="full_name" required></div>
+            <div class="form-group"><label>Email *</label><input type="email" name="email" required></div>
+            <div class="form-group"><label>Phone</label><input type="tel" name="phone" placeholder="+44 7xxx xxxxxx"></div>
+            <div class="form-group"><label>LinkedIn URL</label><input type="url" name="linkedin" placeholder="https://linkedin.com/in/..."></div>
+            <div class="form-group full">
+              <label>Tech Stack / Expertise *</label>
+              <textarea name="tech_stack" rows="3" placeholder="e.g. Python, AWS, Machine Learning, React…" required></textarea>
+            </div>
+            <div class="form-group"><label>Available Slots / Week</label><input type="text" name="available_slots" placeholder="e.g. 3 slots, weekends"></div>
+            <div class="form-group"><label>Profile Photo</label><input type="file" name="photo" accept="image/jpeg,image/png,image/webp"></div>
+          </div>
+          <button type="submit" class="submit-btn">Submit Application</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</body>
+</html>

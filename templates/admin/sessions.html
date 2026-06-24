@@ -1,0 +1,82 @@
+{% extends "admin/layout.html" %}
+{% block title %}Sessions — Admin{% endblock %}
+{% block page_title %}Sessions{% endblock %}
+
+{% block body %}
+<div style="display:flex;justify-content:flex-end;margin-bottom:1.5rem">
+  <button class="enp-btn enp-btn--primary enp-btn--sm" onclick="document.getElementById('add-modal').style.display='flex'">+ Add Session</button>
+</div>
+
+<div class="enp-card">
+  <div class="enp-card__body" style="padding:0;overflow-x:auto">
+    <table class="enp-table" style="min-width:700px">
+      <thead><tr><th>Date</th><th>Student</th><th>Mentor</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for s in sessions %}
+        <tr>
+          <td style="font-size:.85rem">{{ s.scheduled_at.strftime('%d %b %Y %H:%M') if s.scheduled_at else '—' }}</td>
+          <td>{{ s.student_name or '—' }}</td>
+          <td>{{ s.mentor_name or '—' }}</td>
+          <td>{{ s.duration_min }} min</td>
+          <td><span class="enp-badge {% if s.status=='completed' %}enp-badge--success{% elif s.status=='cancelled' %}enp-badge--error{% else %}enp-badge--info{% endif %}">{{ s.status | title }}</span></td>
+          <td>
+            {% if s.status == 'planned' %}
+            <button class="enp-btn enp-btn--primary enp-btn--sm" onclick="markComplete({{ s.id }})">Mark Complete</button>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align:center;color:var(--enp-muted);padding:2rem">No sessions.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Session Modal -->
+<div id="add-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center">
+  <div style="background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;padding:2rem;max-width:480px;width:90%">
+    <h3 style="margin:0 0 1.25rem;color:var(--enp-text)">Add Session</h3>
+    <form method="POST" action="/admin/sessions/add">
+      <div style="margin-bottom:.75rem">
+        <label style="display:block;color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">Student</label>
+        <select name="student_id" style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit">
+          {% for s in students %}<option value="{{ s.id }}">{{ s.full_name or s.email }}</option>{% endfor %}
+        </select>
+      </div>
+      <div style="margin-bottom:.75rem">
+        <label style="display:block;color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">Mentor</label>
+        <select name="mentor_id" style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit">
+          {% for m in mentors %}<option value="{{ m.id }}">{{ m.full_name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+        <div>
+          <label style="display:block;color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">Date & Time</label>
+          <input type="datetime-local" name="scheduled_at" required style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit">
+        </div>
+        <div>
+          <label style="display:block;color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">Duration (min)</label>
+          <input type="number" name="duration_min" value="60" min="15" step="15" style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit">
+        </div>
+      </div>
+      <div style="display:flex;gap:.75rem;margin-top:1rem">
+        <button type="submit" class="enp-btn enp-btn--primary" style="flex:1">Add Session</button>
+        <button type="button" class="enp-btn enp-btn--ghost" onclick="document.getElementById('add-modal').style.display='none'">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function markComplete(id){
+  const paid=confirm('Mark mentor as paid for this session?')?1:0;
+  const fd=new FormData();fd.append('session_id',id);fd.append('mentor_paid',paid);
+  const r=await fetch('/admin/sessions/mark-complete',{method:'POST',body:fd});
+  const d=await r.json();
+  if(d.ok)location.reload();
+}
+</script>
+{% endblock %}

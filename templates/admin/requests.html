@@ -1,0 +1,55 @@
+{% extends "admin/layout.html" %}
+{% block title %}Requests — Admin{% endblock %}
+{% block page_title %}Open Requests{% endblock %}
+
+{% block body %}
+{% if requests %}
+<div style="display:flex;flex-direction:column;gap:1rem">
+  {% for req in requests %}
+  <div class="enp-card">
+    <div style="padding:1.25rem">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:600;color:var(--enp-text)">{{ req.student_name or req.student_email }}</div>
+          <div style="color:var(--enp-muted);font-size:.85rem;margin-top:.2rem">{{ req.type | replace('_',' ') | title }}</div>
+          {% if req.payload %}
+          <div style="margin-top:.75rem;padding:.75rem;background:#0a0f1e;border-radius:8px;color:var(--enp-muted);font-size:.9rem;max-width:500px">
+            {{ req.payload }}
+          </div>
+          {% endif %}
+          <div style="color:var(--enp-muted);font-size:.8rem;margin-top:.5rem">{{ req.created_at.strftime('%d %b %Y %H:%M') if req.created_at else '' }}</div>
+        </div>
+        <div style="display:flex;gap:.5rem;align-items:flex-start">
+          <button class="enp-btn enp-btn--primary enp-btn--sm" onclick="approveReq({{ req.id }})">Approve</button>
+          <button class="enp-btn enp-btn--danger enp-btn--sm" onclick="denyReq({{ req.id }})">Deny</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="enp-card">
+  <div style="padding:3rem;text-align:center;color:var(--enp-muted)">No open requests.</div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function approveReq(id){
+  const fd=new FormData();fd.append('request_id',id);
+  const r=await fetch('/admin/requests/approve',{method:'POST',body:fd});
+  const d=await r.json();
+  if(d.ok)location.reload(); else alert(d.error);
+}
+async function denyReq(id){
+  const note=prompt('Reason for denial (optional):');
+  if(note===null)return;
+  const fd=new FormData();fd.append('request_id',id);fd.append('admin_note',note||'');
+  const r=await fetch('/admin/requests/deny',{method:'POST',body:fd});
+  const d=await r.json();
+  if(d.ok)location.reload(); else alert(d.error);
+}
+</script>
+{% endblock %}
