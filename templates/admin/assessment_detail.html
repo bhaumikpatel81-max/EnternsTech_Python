@@ -146,7 +146,7 @@
 <div class="enp-card">
   <div class="enp-card__header"><h2 class="enp-card__title">Admin Recommendation</h2></div>
   <div class="enp-card__body">
-    <textarea id="rec-text" rows="5" style="width:100%;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-size:.9rem;padding:.75rem;resize:vertical;font-family:inherit">{{ scores.recommendation or '' }}</textarea>
+    <textarea id="rec-text" rows="5" aria-label="Admin recommendation" style="width:100%;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-size:.9rem;padding:.75rem;resize:vertical;font-family:inherit">{{ scores.recommendation or '' }}</textarea>
     <button class="enp-btn enp-btn--primary enp-btn--sm" style="margin-top:.75rem" onclick="saveRec()">Save Recommendation</button>
     <span id="rec-msg" style="display:none;color:var(--enp-green);font-size:.85rem;margin-left:.5rem">Saved!</span>
   </div>

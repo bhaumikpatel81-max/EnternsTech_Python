@@ -61,7 +61,7 @@
     <h3 style="margin:0 0 1rem;color:var(--enp-text)">Assign Mentor</h3>
     <form id="assign-form" method="POST" action="/admin/students/assign-mentor">
       <input type="hidden" name="student_id" id="assign-student-id">
-      <select name="mentor_id" style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit;margin-bottom:1rem">
+      <select name="mentor_id" aria-label="Select mentor" style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit;margin-bottom:1rem">
         {% for m in mentors %}
         <option value="{{ m.id }}">{{ m.full_name }}</option>
         {% endfor %}
@@ -80,7 +80,7 @@
     <h3 style="margin:0 0 1rem;color:var(--enp-text)">Update Sessions</h3>
     <form id="sessions-form" method="POST" action="/admin/students/update-sessions">
       <input type="hidden" name="student_id" id="sessions-student-id">
-      <input type="number" name="sessions_total" id="sessions-total-input" min="1" max="20"
+      <input type="number" name="sessions_total" id="sessions-total-input" min="1" max="20" aria-label="Total sessions"
              style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit;margin-bottom:1rem">
       <div style="display:flex;gap:.75rem">
         <button type="submit" class="enp-btn enp-btn--primary" style="flex:1">Update</button>

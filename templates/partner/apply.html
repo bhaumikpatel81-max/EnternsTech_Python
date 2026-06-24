@@ -59,8 +59,8 @@
       <div class="enp-card__body">
         <form method="POST" action="/partner/apply" enctype="multipart/form-data">
           <div class="form-grid">
-            <div class="form-group"><label>Full Name *</label><input type="text" name="full_name" required></div>
-            <div class="form-group"><label>Email *</label><input type="email" name="email" required></div>
+            <div class="form-group"><label>Full Name *</label><input type="text" name="full_name" aria-label="Full name" required></div>
+            <div class="form-group"><label>Email *</label><input type="email" name="email" aria-label="Email address" required></div>
             <div class="form-group"><label>Phone</label><input type="tel" name="phone" placeholder="+44 7xxx xxxxxx"></div>
             <div class="form-group"><label>LinkedIn URL</label><input type="url" name="linkedin" placeholder="https://linkedin.com/in/..."></div>
             <div class="form-group full">
@@ -68,7 +68,7 @@
               <textarea name="tech_stack" rows="3" placeholder="e.g. Python, AWS, Machine Learning, React…" required></textarea>
             </div>
             <div class="form-group"><label>Available Slots / Week</label><input type="text" name="available_slots" placeholder="e.g. 3 slots, weekends"></div>
-            <div class="form-group"><label>Profile Photo</label><input type="file" name="photo" accept="image/jpeg,image/png,image/webp"></div>
+            <div class="form-group"><label>Profile Photo</label><input type="file" name="photo" accept="image/jpeg,image/png,image/webp" aria-label="Profile photo"></div>
           </div>
           <button type="submit" class="submit-btn">Submit Application</button>
         </form>

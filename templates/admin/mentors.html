@@ -74,7 +74,7 @@
   <div style="background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;padding:2rem;max-width:480px;width:90%">
     <h3 style="margin:0 0 .5rem;color:var(--enp-text)">Extra Fields (JSON)</h3>
     <p style="color:var(--enp-muted);font-size:.82rem;margin:0 0 1rem">Free-form key/value data for this mentor. Must be valid JSON.</p>
-    <textarea id="extra-json" rows="8"
+    <textarea id="extra-json" rows="8" aria-label="Extra fields JSON"
       style="width:100%;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;
              color:var(--enp-text);font-size:.88rem;padding:.75rem;resize:vertical;font-family:monospace"></textarea>
     <input type="hidden" id="extra-mentor-id">
@@ -92,7 +92,7 @@
     <h3 style="margin:0 0 1rem;color:var(--enp-text)">Update Rate</h3>
     <form id="rate-form" method="POST" action="/admin/mentors/update-rate">
       <input type="hidden" name="mentor_id" id="rate-mentor-id">
-      <input type="number" name="rate_per_session" id="rate-input" min="0" step="100"
+      <input type="number" name="rate_per_session" id="rate-input" min="0" step="100" aria-label="Rate per session"
              style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit;margin-bottom:1rem">
       <div style="display:flex;gap:.75rem">
         <button type="submit" class="enp-btn enp-btn--primary" style="flex:1">Save</button>

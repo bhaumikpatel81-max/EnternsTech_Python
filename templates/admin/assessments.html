@@ -92,24 +92,24 @@
     <div class="enp-card__body">
       <form id="gen-form">
         <div class="form-grid">
-          <div class="form-group"><label>Candidate Name</label><input type="text" name="candidate_name" required></div>
-          <div class="form-group"><label>Candidate Email</label><input type="email" name="candidate_email" required></div>
-          <div class="form-group"><label>Phone (optional)</label><input type="text" name="candidate_phone"></div>
-          <div class="form-group"><label>Payment Ref</label><input type="text" name="payment_ref"></div>
+          <div class="form-group"><label>Candidate Name</label><input type="text" name="candidate_name" aria-label="Candidate name" required></div>
+          <div class="form-group"><label>Candidate Email</label><input type="email" name="candidate_email" aria-label="Candidate email" required></div>
+          <div class="form-group"><label>Phone (optional)</label><input type="text" name="candidate_phone" aria-label="Candidate phone (optional)"></div>
+          <div class="form-group"><label>Payment Ref</label><input type="text" name="payment_ref" aria-label="Payment reference"></div>
           <div class="form-group"><label>Region</label>
-            <select name="region">
+            <select name="region" aria-label="Region">
               <option value="UK">UK</option><option value="US">US</option>
               <option value="CA">Canada</option><option value="IN">India</option>
             </select>
           </div>
           <div class="form-group"><label>Education Level</label>
-            <select name="education_level">
+            <select name="education_level" aria-label="Education level">
               <option value="1">1 — School Leaver</option><option value="2" selected>2 — Undergraduate</option>
               <option value="3">3 — Graduate</option><option value="4">4 — Postgraduate+</option>
             </select>
           </div>
           <div class="form-group" style="grid-column:1/-1"><label>Field</label>
-            <select name="field">
+            <select name="field" aria-label="Field of study or career">
               <option value="IT">IT / Software</option><option value="DATA_AI">Data & AI</option>
               <option value="FINANCE">Finance</option><option value="MARKETING">Marketing</option>
               <option value="ALL">General</option>

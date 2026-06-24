@@ -42,7 +42,7 @@
     <form class="add-form" id="addRevForm">
       <div class="field">
         <label>Date</label>
-        <input type="date" name="entry_date" required>
+        <input type="date" name="entry_date" aria-label="Entry date" required>
       </div>
       <div class="field">
         <label>Amount</label>
@@ -50,7 +50,7 @@
       </div>
       <div class="field">
         <label>Currency</label>
-        <select name="currency">
+        <select name="currency" aria-label="Currency">
           <option value="INR">INR</option>
           <option value="USD">USD</option>
           <option value="GBP">GBP</option>
@@ -59,7 +59,7 @@
       </div>
       <div class="field">
         <label>Category</label>
-        <select name="category">
+        <select name="category" aria-label="Revenue category">
           <option value="other">Other</option>
           <option value="sponsorship">Sponsorship</option>
           <option value="workshop">Workshop</option>
