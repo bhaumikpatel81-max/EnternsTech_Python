@@ -1,6 +1,7 @@
 import os
+import pymysql
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -9,6 +10,32 @@ from app.routes import auth, student, mentor, admin, payments, partner, psychome
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 app = FastAPI(title="Enterns Tech Portal", docs_url=None, redoc_url=None)
+
+
+# ── Global error handlers ────────────────────────────────────────────────────
+
+@app.exception_handler(pymysql.err.OperationalError)
+async def db_operational_error(request: Request, exc: pymysql.err.OperationalError):
+    msg = (
+        "Database connection failed.\n\n"
+        f"Error: {exc}\n\n"
+        "Check your .env file:\n"
+        "  DB_HOST  — must be your real Bluehost server hostname (not the placeholder)\n"
+        "  DB_NAME  — full name including cPanel prefix, e.g. u12345678_enternstech\n"
+        "  DB_USER  — full username with prefix, e.g. u12345678_entuser\n"
+        "  DB_PASS  — your database password\n\n"
+        "Also ensure Remote MySQL is enabled in Bluehost cPanel → Remote MySQL → add % as host.\n"
+        "After editing .env, restart uvicorn."
+    )
+    return PlainTextResponse(msg, status_code=503)
+
+
+@app.exception_handler(Exception)
+async def generic_error(request: Request, exc: Exception):
+    import traceback
+    tb = traceback.format_exc()
+    msg = f"Unhandled error: {type(exc).__name__}: {exc}\n\n{tb}"
+    return PlainTextResponse(msg, status_code=500)
 
 # Static files
 if os.path.isdir(os.path.join(BASE_DIR, "public")):
