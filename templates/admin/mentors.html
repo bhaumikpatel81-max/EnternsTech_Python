@@ -40,7 +40,10 @@
           {% else %}
           <td>₹{{ m.rate_per_session }} <button class="enp-btn enp-btn--ghost enp-btn--sm" onclick="editRate({{ m.id }},{{ m.rate_per_session }})">Edit</button></td>
           <td>{{ m.available_slots }}</td>
-          <td><a href="mailto:{{ m.email }}" class="enp-btn enp-btn--ghost enp-btn--sm">Email</a></td>
+          <td style="display:flex;gap:.4rem;flex-wrap:wrap">
+            <a href="mailto:{{ m.email }}" class="enp-btn enp-btn--ghost enp-btn--sm">Email</a>
+            <button type="button" class="enp-btn enp-btn--ghost enp-btn--sm" onclick="editExtra({{ m.id }}, {{ m.extra_fields | tojson if m.extra_fields else '{}' }})">Extra Fields</button>
+          </td>
           {% endif %}
         </tr>
         {% else %}
@@ -62,6 +65,23 @@
     <div style="display:flex;gap:.75rem;margin-top:1rem">
       <button class="enp-btn enp-btn--primary" style="flex:1" onclick="sendInfoRequest()">Send</button>
       <button class="enp-btn enp-btn--ghost" onclick="document.getElementById('info-modal').style.display='none'">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Extra Fields Modal -->
+<div id="extra-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center">
+  <div style="background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;padding:2rem;max-width:480px;width:90%">
+    <h3 style="margin:0 0 .5rem;color:var(--enp-text)">Extra Fields (JSON)</h3>
+    <p style="color:var(--enp-muted);font-size:.82rem;margin:0 0 1rem">Free-form key/value data for this mentor. Must be valid JSON.</p>
+    <textarea id="extra-json" rows="8"
+      style="width:100%;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;
+             color:var(--enp-text);font-size:.88rem;padding:.75rem;resize:vertical;font-family:monospace"></textarea>
+    <input type="hidden" id="extra-mentor-id">
+    <div id="extra-error" style="display:none;color:var(--enp-red);font-size:.82rem;margin-top:.5rem"></div>
+    <div style="display:flex;gap:.75rem;margin-top:1rem">
+      <button type="button" class="enp-btn enp-btn--primary" style="flex:1" onclick="saveExtraFields()">Save</button>
+      <button type="button" class="enp-btn enp-btn--ghost" onclick="document.getElementById('extra-modal').style.display='none'">Cancel</button>
     </div>
   </div>
 </div>
@@ -118,6 +138,29 @@ function editRate(id,current){
   document.getElementById('rate-mentor-id').value=id;
   document.getElementById('rate-input').value=current;
   document.getElementById('rate-modal').style.display='flex';
+}
+function editExtra(id,data){
+  document.getElementById('extra-mentor-id').value=id;
+  document.getElementById('extra-json').value=JSON.stringify(data,null,2);
+  document.getElementById('extra-error').style.display='none';
+  document.getElementById('extra-modal').style.display='flex';
+}
+async function saveExtraFields(){
+  const id=document.getElementById('extra-mentor-id').value;
+  const raw=document.getElementById('extra-json').value.trim();
+  try { JSON.parse(raw); } catch(e){
+    const err=document.getElementById('extra-error');
+    err.textContent='Invalid JSON: '+e.message;
+    err.style.display='block';
+    return;
+  }
+  const fd=new FormData();
+  fd.append('mentor_id',id);
+  fd.append('extra_fields',raw);
+  const r=await fetch('/admin/mentors/update-extra-fields',{method:'POST',body:fd});
+  const d=await r.json();
+  if(d.ok){ document.getElementById('extra-modal').style.display='none'; }
+  else { alert(d.error||'Error saving'); }
 }
 </script>
 {% endblock %}

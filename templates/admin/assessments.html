@@ -20,6 +20,7 @@
 <div style="display:flex;gap:.75rem;margin-bottom:1.5rem">
   <button class="tab-btn {% if tab=='list' %}active{% endif %}" onclick="showTab('list')">Assessment List</button>
   <button class="tab-btn {% if tab=='generate' %}active{% endif %}" onclick="showTab('generate')">Generate Link</button>
+  <button class="tab-btn {% if tab=='settings' %}active{% endif %}" onclick="showTab('settings')">Settings</button>
 </div>
 
 <!-- List tab -->
@@ -53,6 +54,33 @@
           {% endfor %}
         </tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- Settings tab -->
+<div id="tab-settings" style="display:{% if tab=='settings' %}block{% else %}none{% endif %}">
+  <div class="enp-card" style="max-width:560px">
+    <div class="enp-card__header"><h2 class="enp-card__title">Razorpay — Per-Plan Assessment Gate</h2></div>
+    <div class="enp-card__body">
+      <p style="color:var(--enp-muted);font-size:.9rem;margin:0 0 1.25rem">
+        When enabled for a plan, a Razorpay payment is required before the assessment link is auto-sent.
+      </p>
+      <form id="rzp-settings-form">
+        {% for plan_id, plan in plan_catalog.items() if plan_catalog is defined %}
+        <label style="display:flex;align-items:center;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--enp-border);cursor:pointer">
+          <input type="checkbox" name="plan_{{ plan_id }}"
+                 {% if rzp_plans and rzp_plans.get('plan_' + plan_id) %}checked{% endif %}
+                 style="width:16px;height:16px;accent-color:var(--enp-cyan)">
+          <span style="color:var(--enp-text)">{{ plan.name }}</span>
+          <span style="color:var(--enp-muted);font-size:.82rem;margin-left:auto">{{ plan_id }}</span>
+        </label>
+        {% else %}
+        <p style="color:var(--enp-muted)">No plans configured in settings.</p>
+        {% endfor %}
+        <button type="button" class="enp-btn enp-btn--primary" style="margin-top:1.25rem;width:100%" onclick="saveRzpSettings()">Save Settings</button>
+      </form>
+      <div id="rzp-saved" style="display:none;color:var(--enp-green);font-size:.9rem;margin-top:.75rem">✓ Saved</div>
     </div>
   </div>
 </div>
@@ -109,8 +137,18 @@
 {% block scripts %}
 <script>
 function showTab(tab){
-  document.getElementById('tab-list').style.display=tab==='list'?'block':'none';
-  document.getElementById('tab-generate').style.display=tab==='generate'?'block':'none';
+  ['list','generate','settings'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=tab===t?'block':'none';
+  });
+}
+async function saveRzpSettings(){
+  const fd=new FormData(document.getElementById('rzp-settings-form'));
+  const r=await fetch('/admin/assessments/settings',{method:'POST',body:fd});
+  const d=await r.json();
+  const el=document.getElementById('rzp-saved');
+  el.style.display='block';
+  if(!d.ok) el.textContent='Error: '+(d.error||'unknown');
+  setTimeout(()=>{el.style.display='none';},2500);
 }
 let _lastAssessmentId=null;
 async function generateLink(){

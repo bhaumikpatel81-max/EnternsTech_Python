@@ -1,142 +1,30 @@
-name: Deploy to Hostinger
+name: CI
 
-# Deploys both the WordPress theme AND the admin portal to Hostinger over FTP
-# whenever you push to the main branch.
-#
-# ─────────────────────────────────────────────────────────────────────────────
-# ONE-TIME SETUP — add these three repository secrets:
-#   GitHub repo → Settings → Secrets and variables → Actions → New repository secret
-#
-#   Secret name      Where to find the value in Hostinger
-#   ───────────────  ──────────────────────────────────────────────────────────
-#   FTP_SERVER       hPanel → Hosting → Manage → FTP Accounts
-#                    "FTP server" field — looks like: ftp.enternstech.com
-#                    (or the server IP shown in hPanel → Details / Server info)
-#
-#   FTP_USERNAME     hPanel → Hosting → Manage → FTP Accounts
-#                    The username of the FTP account you created, e.g.:
-#                    u123456789.enternstech   (Hostinger format)
-#
-#   FTP_PASSWORD     The password you set when creating that FTP account.
-#
-# ─────────────────────────────────────────────────────────────────────────────
-# HOSTINGER PATH NOTE:
-#   The server-dir below assumes WordPress is installed at the root of your
-#   domain (public_html/).  If Hostinger shows a different base path in their
-#   File Manager, adjust accordingly.
-#
-#   Hostinger FTP root = /  which maps to your home directory.
-#   public_html/ is usually the web root for your primary domain.
-#
-#   Theme folder name "enternstech" must match the folder WordPress has
-#   activated under Appearance → Themes.  If the folder on the server is
-#   currently named something else, either rename it in File Manager first
-#   or update server-dir here to match.
-# ─────────────────────────────────────────────────────────────────────────────
+# Runs on every push to main and on pull requests.
+# Vercel deploys the FastAPI app automatically via its GitHub integration
+# (no extra deploy step needed here).
 
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:        # allows manual trigger from the GitHub Actions tab
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  deploy-theme:
-    name: Deploy WordPress Theme
+  test:
+    name: Lint & type-check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Upload theme via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          server:   ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftp
-          port: 21
-          local-dir:  ./enternstech/
-          server-dir: /public_html/wp-content/themes/enternstech-theme/
-          dangerous-clean-slate: false
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/README.md
-            **/.github/**
-            **/static/**
-            **/source/**
+          python-version: "3.11"
+          cache: pip
 
-      # ── ONE-TIME CLEANUP ────────────────────────────────────────────────────
-      # The stale static/ and source/ folders exist on the server from a previous
-      # deploy and cannot be removed by FTP-Deploy-Action (it never deletes).
-      # This step prints the exact paths to delete by hand in Bluehost File Manager.
-      # Once you have deleted them, you can remove this step from the workflow.
-      # ────────────────────────────────────────────────────────────────────────
-      - name: "ACTION REQUIRED — delete stale bundle files from Bluehost"
-        run: |
-          echo ""
-          echo "============================================================"
-          echo "  MANUAL CLEANUP REQUIRED IN BLUEHOST FILE MANAGER"
-          echo "============================================================"
-          echo ""
-          echo "  The following stale paths still exist on the server."
-          echo "  Log into Bluehost → File Manager → public_html and DELETE:"
-          echo ""
-          echo "  FILE:"
-          echo "    public_html/wp-content/themes/enternstech-theme/static/index.html"
-          echo ""
-          echo "  FOLDERS (delete entire folder and all contents):"
-          echo "    public_html/wp-content/themes/enternstech-theme/static/"
-          echo "    public_html/wp-content/themes/enternstech-theme/source/"
-          echo ""
-          echo "  After deleting: clear WP Fastest Cache, clear Bluehost"
-          echo "  hosting cache, then test the homepage in an incognito window."
-          echo ""
-          echo "  Once cleaned up, remove this step from deploy.yml."
-          echo "============================================================"
-          echo ""
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
-  deploy-admin-portal:
-    name: Deploy Admin Portal
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Upload admin portal via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server:   ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftp
-          port: 21
-          local-dir:  ./admin-portal/
-          server-dir: /public_html/admin-portal/
-          dangerous-clean-slate: false
-          exclude: |
-            **/.git*
-            **/.git*/**
-            config.php
-
-  deploy-plugin:
-    name: Deploy Enterns Portal Plugin
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Upload plugin via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server:   ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftp
-          port: 21
-          local-dir:  ./enterns-portal/
-          server-dir: /public_html/wp-content/plugins/enterns-portal/
-          dangerous-clean-slate: false
-          exclude: |
-            **/.git*
-            **/.git*/**
+      - name: Check imports resolve
+        run: python -c "from app.main import app; print('app OK')"

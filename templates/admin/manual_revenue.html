@@ -1,0 +1,133 @@
+{% extends "admin/layout.html" %}
+{% block title %}Manual Revenue — Admin{% endblock %}
+{% block page_title %}Manual Revenue{% endblock %}
+
+{% block head %}
+<style>
+  .rev-totals{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem}
+  .rev-total-card{background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:10px;
+                  padding:.85rem 1.25rem;min-width:140px}
+  .rev-total-card .label{color:var(--enp-muted);font-size:.78rem;margin-bottom:.25rem}
+  .rev-total-card .value{color:var(--enp-green);font-size:1.4rem;font-weight:700}
+  .add-form{display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:1.5rem}
+  .add-form .field{display:flex;flex-direction:column;gap:.35rem}
+  .add-form label{font-size:.8rem;color:var(--enp-muted)}
+  .add-form input,.add-form select{background:var(--enp-surface);border:1px solid var(--enp-border);
+    color:var(--enp-text);border-radius:6px;padding:.45rem .75rem;font-size:.9rem;min-width:130px}
+  .add-form input:focus,.add-form select:focus{outline:none;border-color:var(--enp-cyan)}
+</style>
+{% endblock %}
+
+{% block body %}
+
+{# ── Totals ── #}
+<div class="rev-totals">
+  {% for t in totals %}
+  <div class="rev-total-card">
+    <div class="label">Total ({{ t.currency }})</div>
+    <div class="value">{{ t.currency }} {{ "{:,.2f}".format(t.total) }}</div>
+  </div>
+  {% else %}
+  <div class="rev-total-card">
+    <div class="label">Total</div>
+    <div class="value">—</div>
+  </div>
+  {% endfor %}
+</div>
+
+{# ── Add entry form ── #}
+<div class="enp-card" style="margin-bottom:1.5rem">
+  <div class="enp-card__header"><h3 class="enp-card__title">Add Entry</h3></div>
+  <div class="enp-card__body">
+    <form class="add-form" id="addRevForm">
+      <div class="field">
+        <label>Date</label>
+        <input type="date" name="entry_date" required>
+      </div>
+      <div class="field">
+        <label>Amount</label>
+        <input type="number" name="amount" step="0.01" min="0" placeholder="0.00" required style="min-width:110px">
+      </div>
+      <div class="field">
+        <label>Currency</label>
+        <select name="currency">
+          <option value="INR">INR</option>
+          <option value="USD">USD</option>
+          <option value="GBP">GBP</option>
+          <option value="EUR">EUR</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Category</label>
+        <select name="category">
+          <option value="other">Other</option>
+          <option value="sponsorship">Sponsorship</option>
+          <option value="workshop">Workshop</option>
+          <option value="consulting">Consulting</option>
+          <option value="referral">Referral</option>
+          <option value="grant">Grant</option>
+        </select>
+      </div>
+      <div class="field" style="flex:1;min-width:200px">
+        <label>Description</label>
+        <input type="text" name="description" placeholder="Optional note">
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button type="submit" class="enp-btn enp-btn--primary" style="height:36px">Add</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Table ── #}
+<div class="enp-card">
+  <div class="enp-card__body" style="padding:0;overflow-x:auto">
+    <table class="enp-table" style="min-width:650px">
+      <thead>
+        <tr><th>Date</th><th>Amount</th><th>Currency</th><th>Category</th><th>Description</th><th></th></tr>
+      </thead>
+      <tbody id="revTableBody">
+        {% for e in entries %}
+        <tr id="row-{{ e.id }}">
+          <td style="font-size:.85rem;color:var(--enp-muted)">{{ e.entry_date.strftime('%d %b %Y') if e.entry_date else '' }}</td>
+          <td style="color:var(--enp-green);font-weight:600">{{ "{:,.2f}".format(e.amount) }}</td>
+          <td><span class="enp-badge enp-badge--info">{{ e.currency }}</span></td>
+          <td><span class="enp-badge enp-badge--warn">{{ e.category | title }}</span></td>
+          <td style="color:var(--enp-muted);font-size:.88rem">{{ e.description or '—' }}</td>
+          <td>
+            <button class="enp-btn enp-btn--danger" style="font-size:.8rem;padding:.3rem .7rem"
+                    onclick="deleteEntry({{ e.id }})">Delete</button>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align:center;color:var(--enp-muted);padding:2rem">No entries yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('addRevForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const r = await fetch('/admin/manual-revenue/add', {method:'POST', body: fd});
+  const j = await r.json();
+  if (j.ok) { location.reload(); }
+  else { alert(j.error || 'Error'); }
+});
+
+async function deleteEntry(id) {
+  if (!confirm('Delete this entry?')) return;
+  const fd = new FormData();
+  fd.append('entry_id', id);
+  const r = await fetch('/admin/manual-revenue/delete', {method:'POST', body: fd});
+  const j = await r.json();
+  if (j.ok) { document.getElementById('row-' + id)?.remove(); }
+  else { alert(j.error || 'Error'); }
+}
+</script>
+{% endblock %}

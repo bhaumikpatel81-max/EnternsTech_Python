@@ -255,6 +255,7 @@ async def assessments(request: Request, tab: str = "list"):
     rows = fetchall("SELECT * FROM psy_assessments ORDER BY created_at DESC LIMIT 200")
     return templates.TemplateResponse("admin/assessments.html", {
         "request": request, "assessments": rows, "section": "assessments", "tab": tab,
+        "plan_catalog": settings.PLAN_CATALOG, "rzp_plans": {},
     })
 
 
@@ -388,8 +389,111 @@ async def mark_complete(request: Request, session_id: int = Form(...), mentor_pa
         "UPDATE sessions SET status='completed', mentor_paid=%s WHERE id=%s",
         (bool(mentor_paid), session_id),
     )
-    # Increment sessions_used for the student
     session = fetchone("SELECT student_id FROM sessions WHERE id=%s", (session_id,))
     if session:
         execute("UPDATE students SET sessions_used=sessions_used+1 WHERE id=%s", (session["student_id"],))
+    return JSONResponse({"ok": True})
+
+
+# ── Manual Revenue ───────────────────────────────────────────────────────────────
+
+@router.get("/manual-revenue", response_class=HTMLResponse)
+async def manual_revenue(request: Request):
+    if not _admin_required(request):
+        return RedirectResponse("/login")
+    rows = fetchall("SELECT * FROM manual_revenue ORDER BY entry_date DESC LIMIT 500")
+    totals = fetchall(
+        "SELECT currency, SUM(amount) AS total FROM manual_revenue GROUP BY currency"
+    )
+    return templates.TemplateResponse("admin/manual_revenue.html", {
+        "request": request, "entries": rows, "totals": totals, "section": "manual_revenue",
+    })
+
+
+@router.post("/manual-revenue/add")
+async def manual_revenue_add(
+    request: Request,
+    entry_date:  str   = Form(...),
+    amount:      float = Form(...),
+    currency:    str   = Form("INR"),
+    category:    str   = Form("other"),
+    description: str   = Form(""),
+):
+    if not _admin_required(request):
+        return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
+    execute(
+        "INSERT INTO manual_revenue (entry_date, amount, currency, category, description) VALUES (%s,%s,%s,%s,%s)",
+        (entry_date, amount, currency.upper(), category, description),
+    )
+    return JSONResponse({"ok": True})
+
+
+@router.post("/manual-revenue/delete")
+async def manual_revenue_delete(request: Request, entry_id: int = Form(...)):
+    if not _admin_required(request):
+        return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
+    execute("DELETE FROM manual_revenue WHERE id=%s", (entry_id,))
+    return JSONResponse({"ok": True})
+
+
+# ── Mentor extra_fields ──────────────────────────────────────────────────────────
+
+@router.post("/mentors/update-extra-fields")
+async def update_extra_fields(
+    request: Request,
+    mentor_id:    int = Form(...),
+    extra_fields: str = Form("{}"),
+):
+    if not _admin_required(request):
+        return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
+    try:
+        parsed = json.loads(extra_fields)
+    except (ValueError, TypeError):
+        return JSONResponse({"ok": False, "error": "Invalid JSON"})
+    execute("UPDATE mentors SET extra_fields=%s WHERE id=%s", (json.dumps(parsed), mentor_id))
+    return JSONResponse({"ok": True})
+
+
+# ── Psychometric settings (Razorpay toggle per field) ────────────────────────────
+
+@router.get("/assessments/settings", response_class=HTMLResponse)
+async def psy_settings(request: Request):
+    if not _admin_required(request):
+        return RedirectResponse("/login")
+    rows = fetchall("SELECT * FROM psy_assessments ORDER BY created_at DESC LIMIT 200")
+    row = fetchone(
+        "SELECT setting_val FROM app_settings WHERE setting_key='psy_rzp_plans' LIMIT 1"
+    )
+    try:
+        rzp_plans = json.loads(row["setting_val"]) if row else {}
+    except Exception:
+        rzp_plans = {}
+    return templates.TemplateResponse("admin/assessments.html", {
+        "request": request, "assessments": rows,
+        "section": "assessments", "tab": "settings",
+        "rzp_plans": rzp_plans,
+        "plan_catalog": settings.PLAN_CATALOG,
+    })
+
+
+@router.post("/assessments/settings")
+async def save_psy_settings(request: Request):
+    if not _admin_required(request):
+        return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
+    form = await request.form()
+    rzp_plans = {k: True for k in form.keys() if k.startswith("plan_")}
+    serialised = json.dumps(rzp_plans)
+    existing = fetchone(
+        "SELECT id FROM app_settings WHERE setting_key='psy_rzp_plans' LIMIT 1"
+    )
+    if existing:
+        execute(
+            "UPDATE app_settings SET setting_val=%s WHERE setting_key='psy_rzp_plans'",
+            (serialised,),
+        )
+    else:
+        execute(
+            "INSERT INTO app_settings (setting_key, setting_val) VALUES ('psy_rzp_plans', %s)",
+            (serialised,),
+        )
     return JSONResponse({"ok": True})
