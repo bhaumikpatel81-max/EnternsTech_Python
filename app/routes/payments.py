@@ -1,14 +1,16 @@
 import hashlib
 import hmac
+import secrets
 import time
 import httpx
 import base64
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from app.config import settings
 from app.database import fetchone, execute
 from app import email_service
-from app.auth import hash_password, create_token
+from app.auth import hash_password
 
 router = APIRouter(prefix="/api/payments")
 
@@ -26,12 +28,19 @@ async def create_order(request: Request):
     plan_id = str(data.get("plan_id", "")).lower().strip()
     email   = str(data.get("email", "")).strip().lower()
 
-    if plan_id not in settings.PLAN_PRICES:
-        return JSONResponse({"ok": False, "error": "Invalid plan."})
     if "@" not in email:
         return JSONResponse({"ok": False, "error": "Invalid email."})
 
-    paise = settings.PLAN_PRICES[plan_id]
+    from app.services.catalog import get_plan, get_active_auto_discounts, apply_discounts
+    plan = get_plan(plan_id)
+    if not plan:
+        return JSONResponse({"ok": False, "error": "Invalid plan."})
+
+    paise = plan["paise"]
+    # Apply any active automatic discounts server-side (never trust client amounts)
+    auto_discounts = get_active_auto_discounts(plan_id)
+    if auto_discounts:
+        paise = apply_discounts(paise, auto_discounts)
     receipt = f"enp_{plan_id}_{int(time.time())}"
 
     auth = base64.b64encode(
@@ -119,23 +128,24 @@ def activate_student(email: str, plan_id: str, payment_id: int) -> dict:
     """Idempotent: create/update user+student row, mark payment paid, send welcome email."""
     execute("UPDATE payments SET status='paid' WHERE id=%s", (payment_id,))
 
-    sessions = settings.PLAN_SESSIONS.get(plan_id, 4)
-    plan_name = settings.PLAN_CATALOG.get(plan_id, {}).get("name", plan_id)
+    from app.services.catalog import get_plan
+    plan_info = get_plan(plan_id) or {}
+    sessions = max(4, min(8, int(plan_info.get("sessions", settings.PLAN_SESSIONS.get(plan_id, 4)))))
+    plan_name = plan_info.get("name") or settings.PLAN_CATALOG.get(plan_id, {}).get("name", plan_id)
 
     # Find or create user
-    user = fetchone("SELECT * FROM users WHERE email=%s LIMIT 1", (email,))
-    is_new = False
+    user = fetchone("SELECT id, password_hash FROM users WHERE email=%s LIMIT 1", (email,))
 
     if user:
         uid = user["id"]
         execute("UPDATE users SET role='student' WHERE id=%s", (uid,))
     else:
-        is_new = True
-        temp_hash = hash_password("ChangeMe123!")  # will be overwritten via set-password link
+        # NULL password_hash — user must set password via email link
         uid = execute(
-            "INSERT INTO users (email, password_hash, role) VALUES (%s, %s, 'student')",
-            (email, temp_hash),
+            "INSERT INTO users (email, password_hash, role) VALUES (%s, NULL, 'student')",
+            (email,),
         )
+        user = {"id": uid, "password_hash": None}
 
     # Upsert student row
     student = fetchone("SELECT id FROM students WHERE email=%s LIMIT 1", (email,))
@@ -154,10 +164,17 @@ def activate_student(email: str, plan_id: str, payment_id: int) -> dict:
 
     execute("UPDATE payments SET student_id=%s WHERE id=%s", (student_id, payment_id))
 
-    if is_new:
-        # Generate set-password link (24-hour expiry)
-        token = create_token({"user_id": uid, "purpose": "set_password"}, expires_minutes=1440)
-        set_pw_url = f"{settings.APP_BASE_URL}/set-password?token={token}"
+    # Send welcome + set-password link whenever user has no password yet
+    if not user.get("password_hash"):
+        raw_token = secrets.token_hex(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        expires = datetime.now(timezone.utc) + timedelta(minutes=settings.SET_TOKEN_EXPIRY_MINUTES)
+        execute(
+            """INSERT INTO password_tokens (user_id, token_hash, purpose, expires_at)
+               VALUES (%s, %s, 'set', %s)""",
+            (uid, token_hash, expires.replace(tzinfo=None)),
+        )
+        set_pw_url = f"{settings.APP_BASE_URL}/set-password?token={raw_token}"
         email_service.send_student_welcome(email, plan_name, set_pw_url)
 
     return {"ok": True, "student_id": student_id}

@@ -12,9 +12,10 @@ class Settings(BaseSettings):
 
     # Security
     SECRET_KEY: str = "change-me-in-production"
-    ADMIN_PASSWORD: str = "admin123"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 480  # 8 hours
+    RESET_TOKEN_EXPIRY_MINUTES: int = 60    # forgot-password links
+    SET_TOKEN_EXPIRY_MINUTES: int = 1440    # set-password links (24 h)
 
     # Razorpay
     RAZORPAY_KEY_ID: str = ""

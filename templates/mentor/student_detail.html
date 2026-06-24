@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}{{ student.full_name or 'Student' }} — Mentor Portal{% endblock %}
+
+{% block head %}
+<style>
+  .sdt-nav-form  { margin: 0; }
+  .sdt-back      { color: var(--enp-muted); font-size: .9rem; text-decoration: none; display: inline-flex;
+                   align-items: center; gap: .35rem; margin-bottom: 1.25rem; }
+  .sdt-back:hover { color: var(--enp-text); }
+  .sdt-two-col   { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+  .sdt-mb        { margin-bottom: 1.5rem; }
+
+  /* Profile fields */
+  .sdt-field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+  .sdt-label     { color: var(--enp-muted); font-size: .78rem; font-weight: 600; letter-spacing: .06em;
+                   text-transform: uppercase; margin-bottom: .25rem; }
+  .sdt-value     { font-size: .95rem; }
+  .sdt-masked    { color: var(--enp-muted); font-style: italic; font-size: .88rem; }
+
+  /* Skills */
+  .sdt-stack     { background: #0a0f1e; border: 1px solid var(--enp-border); border-radius: 8px;
+                   padding: .75rem 1rem; color: var(--enp-text); font-size: .9rem; line-height: 1.6; }
+
+  /* Table */
+  .sdt-table-wrap { overflow-x: auto; }
+  .sdt-topic     { color: var(--enp-muted); font-size: .88rem; }
+  .sdt-no-data   { color: var(--enp-muted); }
+</style>
+{% endblock %}
+
+{% block nav_links %}
+  <a href="/mentor">Dashboard</a>
+  <form action="/logout" method="get" class="sdt-nav-form">
+    <button type="submit" class="logout-btn">Sign Out</button>
+  </form>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <a href="/mentor" class="sdt-back">← Back to Dashboard</a>
+
+  <div class="enp-portal-header__title sdt-mb">
+    <h1>{{ student.full_name or '(unnamed)' }}</h1>
+    <span class="enp-badge enp-badge--student">{{ student.plan_id | upper if student.plan_id else 'No Plan' }}</span>
+    <span class="enp-badge {% if student.status == 'active' %}enp-badge--success{% else %}enp-badge--warn{% endif %}">
+      {{ student.status | title }}
+    </span>
+  </div>
+
+  <!-- Profile & Skills -->
+  <div class="sdt-two-col">
+    <div class="enp-card">
+      <div class="enp-card__header"><h2 class="enp-card__title">Profile</h2></div>
+      <div class="enp-card__body">
+        <div class="sdt-field-grid">
+          <div>
+            <div class="sdt-label">Contact</div>
+            <div class="sdt-masked">{{ student.phone }}</div>
+            <div class="sdt-masked">{{ student.email }}</div>
+          </div>
+          <div>
+            <div class="sdt-label">Plan</div>
+            <div class="sdt-value">{{ student.plan_id | upper if student.plan_id else '—' }}</div>
+          </div>
+          <div>
+            <div class="sdt-label">Sessions</div>
+            <div class="sdt-value">{{ student.sessions_used }}/{{ student.sessions_total }}</div>
+          </div>
+          <div>
+            <div class="sdt-label">CV Redesign</div>
+            <span class="enp-badge {% if student.cv_redesign_status == 'done' %}enp-badge--success{% elif student.cv_redesign_status == 'in_progress' %}enp-badge--warn{% else %}enp-badge--info{% endif %}">
+              {{ student.cv_redesign_status | replace('_',' ') | title }}
+            </span>
+          </div>
+          {% if student.college %}
+          <div>
+            <div class="sdt-label">College</div>
+            <div class="sdt-value">{{ student.college }}</div>
+          </div>
+          {% endif %}
+          {% if student.live_project %}
+          <div>
+            <div class="sdt-label">Live Project</div>
+            <a href="{{ student.live_project }}" target="_blank" rel="noopener"
+               class="sdt-value" style="color:var(--enp-cyan)">View</a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="enp-card">
+      <div class="enp-card__header"><h2 class="enp-card__title">Skills & Stack</h2></div>
+      <div class="enp-card__body">
+        <div class="sdt-stack">{{ student.tech_stack or 'Not specified.' }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sessions with this student -->
+  <div class="enp-card">
+    <div class="enp-card__header"><h2 class="enp-card__title">Sessions</h2></div>
+    <div class="enp-card__body">
+      {% if sessions %}
+      <div class="sdt-table-wrap">
+        <table class="enp-table">
+          <thead>
+            <tr><th>Date</th><th>Duration</th><th>Status</th><th>Topic</th></tr>
+          </thead>
+          <tbody>
+            {% for s in sessions %}
+            <tr>
+              <td>{{ s.scheduled_at.strftime('%d %b %Y, %H:%M') if s.scheduled_at else '—' }}</td>
+              <td>{{ s.duration_min or 60 }} min</td>
+              <td>
+                <span class="enp-badge
+                  {% if s.status == 'completed' %}enp-badge--success
+                  {% elif s.status == 'cancelled' %}enp-badge--error
+                  {% elif s.status == 'scheduled' %}enp-badge--warn
+                  {% else %}enp-badge--info{% endif %}">
+                  {{ s.status | title }}
+                </span>
+              </td>
+              <td class="sdt-topic">{{ s.topic or '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="sdt-no-data">No sessions yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

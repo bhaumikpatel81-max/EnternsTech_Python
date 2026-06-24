@@ -1,0 +1,388 @@
+{% extends "admin/layout.html" %}
+{% block title %}Catalog — Admin{% endblock %}
+{% block page_title %}Plan Catalog{% endblock %}
+
+{% block head %}
+<style>
+  .tab-bar{display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--enp-border);padding-bottom:0}
+  .tab-btn{padding:.55rem 1.1rem;border:none;background:none;color:var(--enp-muted);cursor:pointer;
+           font-family:inherit;font-size:.9rem;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+  .tab-btn.active{color:var(--enp-cyan);border-bottom-color:var(--enp-cyan)}
+  .tab-panel{display:none}.tab-panel.active{display:block}
+  .catalog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.5rem}
+  .plan-card{background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:12px;padding:1.5rem}
+  .plan-card h3{color:var(--enp-cyan);margin:0 0 1rem;font-size:1rem}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem}
+  .field-row.single{grid-template-columns:1fr}
+  .field-row label{display:block;color:var(--enp-muted);font-size:.78rem;margin-bottom:.3rem}
+  .field-row input,.field-row select{width:100%;padding:.5rem .75rem;background:#0a0f1e;
+    border:1px solid var(--enp-border);border-radius:6px;color:var(--enp-text);font-family:inherit;font-size:.88rem}
+  .field-row input:focus,.field-row select:focus{outline:none;border-color:var(--enp-cyan)}
+  .features-list{margin-bottom:.75rem}
+  .features-list label{color:var(--enp-muted);font-size:.78rem;display:block;margin-bottom:.4rem}
+  .feat-item{display:flex;gap:.4rem;margin-bottom:.4rem}
+  .feat-item input{flex:1;padding:.45rem .7rem;background:#0a0f1e;border:1px solid var(--enp-border);
+    border-radius:6px;color:var(--enp-text);font-size:.85rem;font-family:inherit}
+  .feat-item button{background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.3);
+    color:var(--enp-red);border-radius:6px;padding:0 .6rem;cursor:pointer;font-size:.9rem}
+  .add-feat-btn{background:none;border:1px dashed var(--enp-border);color:var(--enp-muted);
+    border-radius:6px;padding:.4rem .8rem;cursor:pointer;font-size:.82rem;width:100%;margin-bottom:.75rem;
+    font-family:inherit;transition:border-color .15s}
+  .add-feat-btn:hover{border-color:var(--enp-cyan);color:var(--enp-cyan)}
+  .save-btn{background:var(--enp-cyan);color:#05080f;border:none;border-radius:8px;padding:.55rem 1.4rem;
+    font-weight:700;cursor:pointer;font-family:inherit;font-size:.88rem;transition:opacity .15s}
+  .save-btn:hover{opacity:.85}
+  .badge-chip{display:inline-block;background:rgba(34,211,238,.15);color:var(--enp-cyan);
+    border-radius:4px;padding:.15rem .5rem;font-size:.75rem;margin-left:.5rem}
+  .disc-table{width:100%;border-collapse:collapse;font-size:.88rem}
+  .disc-table th{color:var(--enp-muted);font-weight:600;text-align:left;padding:.6rem .8rem;
+    border-bottom:1px solid var(--enp-border)}
+  .disc-table td{padding:.6rem .8rem;border-bottom:1px solid rgba(255,255,255,.04);color:var(--enp-text)}
+  .disc-table tr:hover td{background:rgba(255,255,255,.02)}
+  .pill{display:inline-block;padding:.2rem .55rem;border-radius:4px;font-size:.75rem}
+  .pill-green{background:rgba(74,222,128,.15);color:var(--enp-green)}
+  .pill-red{background:rgba(248,113,113,.15);color:var(--enp-red)}
+  .disc-form{background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:12px;
+    padding:1.5rem;margin-top:1.5rem}
+  .disc-form h3{color:var(--enp-cyan);margin:0 0 1rem;font-size:.95rem}
+  .disc-form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.75rem;margin-bottom:1rem}
+  .disc-form-grid label{display:block;color:var(--enp-muted);font-size:.78rem;margin-bottom:.3rem}
+  .disc-form-grid input,.disc-form-grid select{width:100%;padding:.5rem .75rem;background:#0a0f1e;
+    border:1px solid var(--enp-border);border-radius:6px;color:var(--enp-text);font-family:inherit;font-size:.85rem}
+  .disc-form-grid input:focus,.disc-form-grid select:focus{outline:none;border-color:var(--enp-cyan)}
+  .toast{position:fixed;bottom:1.5rem;right:1.5rem;background:rgba(74,222,128,.2);border:1px solid var(--enp-green);
+    color:var(--enp-green);padding:.75rem 1.25rem;border-radius:8px;font-size:.9rem;display:none;z-index:999}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="tab-bar">
+  <button class="tab-btn {% if tab!='combos' and tab!='discounts' %}active{% endif %}"
+          onclick="switchTab('plans',this)">Plans</button>
+  <button class="tab-btn {% if tab=='combos' %}active{% endif %}"
+          onclick="switchTab('combos',this)">Combos</button>
+  <button class="tab-btn {% if tab=='discounts' %}active{% endif %}"
+          onclick="switchTab('discounts',this)">Discounts</button>
+</div>
+
+<!-- ── Plans ── -->
+<div id="tab-plans" class="tab-panel {% if tab!='combos' and tab!='discounts' %}active{% endif %}">
+  <div class="catalog-grid">
+    {% for pid, plan in plans.items() %}
+    <div class="plan-card" id="plan-{{ pid }}">
+      <h3>{{ plan.name }}{% if plan.badge %}<span class="badge-chip">{{ plan.badge }}</span>{% endif %}</h3>
+      <form onsubmit="savePlan(event,'{{ pid }}')">
+        <div class="field-row">
+          <div>
+            <label>Name</label>
+            <input name="name" value="{{ plan.name }}" required>
+          </div>
+          <div>
+            <label>Badge</label>
+            <input name="badge" value="{{ plan.badge }}">
+          </div>
+        </div>
+        <div class="field-row single">
+          <div>
+            <label>Tagline</label>
+            <input name="tagline" value="{{ plan.tagline }}">
+          </div>
+        </div>
+        <div class="field-row">
+          <div>
+            <label>Price (INR display)</label>
+            <input name="price_dom" value="{{ plan.price_dom }}">
+          </div>
+          <div>
+            <label>Price (USD display)</label>
+            <input name="price_intl" value="{{ plan.price_intl }}">
+          </div>
+        </div>
+        <div class="field-row">
+          <div>
+            <label>Paise (INR × 100) ⚠ billing source</label>
+            <input name="paise" type="number" value="{{ plan.paise }}" required min="0">
+          </div>
+          <div>
+            <label>Cents (USD × 100)</label>
+            <input name="cents" type="number" value="{{ plan.cents }}" min="0">
+          </div>
+        </div>
+        <div class="field-row">
+          <div>
+            <label>Sessions (4–8)</label>
+            <input name="sessions" type="number" value="{{ plan.sessions }}" min="4" max="8" required>
+          </div>
+          <div>
+            <label>Sort order</label>
+            <input name="sort_order" type="number" value="{{ plan.sort_order }}">
+          </div>
+        </div>
+        <div class="field-row">
+          <div>
+            <label>Featured</label>
+            <select name="featured">
+              <option value="1" {% if plan.featured %}selected{% endif %}>Yes</option>
+              <option value="0" {% if not plan.featured %}selected{% endif %}>No</option>
+            </select>
+          </div>
+          <div>
+            <label>Active</label>
+            <select name="active">
+              <option value="1" {% if plan.active %}selected{% endif %}>Yes</option>
+              <option value="0" {% if not plan.active %}selected{% endif %}>No</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="features-list">
+          <label>Features</label>
+          <div id="feats-{{ pid }}">
+            {% for feat in (plan.features or []) %}
+            <div class="feat-item">
+              <input type="text" value="{{ feat }}" placeholder="Feature…">
+              <button type="button" onclick="removeFeat(this)">✕</button>
+            </div>
+            {% endfor %}
+          </div>
+          <button type="button" class="add-feat-btn" onclick="addFeat('{{ pid }}')">+ Add feature</button>
+        </div>
+
+        <input type="hidden" name="features_json" id="fj-{{ pid }}">
+        <button type="submit" class="save-btn">Save Plan</button>
+      </form>
+    </div>
+    {% else %}
+    <p style="color:var(--enp-muted)">No plans found. Run <code>python scripts/seed_catalog.py</code> first.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ── Combos ── -->
+<div id="tab-combos" class="tab-panel {% if tab=='combos' %}active{% endif %}">
+  <div class="catalog-grid">
+    {% for combo in combos %}
+    <div class="plan-card">
+      <h3>{{ combo.name }}</h3>
+      <form onsubmit="saveCombo(event,'{{ combo.id }}')">
+        <div class="field-row single">
+          <div>
+            <label>Name</label>
+            <input name="name" value="{{ combo.name }}" required>
+          </div>
+        </div>
+        <div class="field-row">
+          <div>
+            <label>Price (INR display)</label>
+            <input name="price_dom" value="{{ combo.price_dom }}">
+          </div>
+          <div>
+            <label>Price (USD display)</label>
+            <input name="price_intl" value="{{ combo.price_intl }}">
+          </div>
+        </div>
+        <div class="field-row">
+          <div>
+            <label>Paise ⚠ billing source</label>
+            <input name="paise" type="number" value="{{ combo.paise }}" required min="0">
+          </div>
+          <div>
+            <label>Cents (USD × 100)</label>
+            <input name="cents" type="number" value="{{ combo.cents }}" min="0">
+          </div>
+        </div>
+        <div class="field-row single">
+          <div>
+            <label>Note</label>
+            <input name="note" value="{{ combo.note }}">
+          </div>
+        </div>
+        <div class="field-row">
+          <div>
+            <label>Sort order</label>
+            <input name="sort_order" type="number" value="{{ combo.sort_order }}">
+          </div>
+          <div>
+            <label>Active</label>
+            <select name="active">
+              <option value="1" {% if combo.active %}selected{% endif %}>Yes</option>
+              <option value="0" {% if not combo.active %}selected{% endif %}>No</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="save-btn">Save Combo</button>
+      </form>
+    </div>
+    {% else %}
+    <p style="color:var(--enp-muted)">No combos found. Run <code>python scripts/seed_catalog.py</code> first.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ── Discounts ── -->
+<div id="tab-discounts" class="tab-panel {% if tab=='discounts' %}active{% endif %}">
+  {% if discounts %}
+  <table class="disc-table">
+    <thead>
+      <tr>
+        <th>Label</th><th>Code</th><th>Kind</th><th>Value</th>
+        <th>Applies to</th><th>Dates</th><th>Status</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in discounts %}
+      <tr>
+        <td>{{ d.label }}</td>
+        <td><code>{{ d.code or '(auto)' }}</code></td>
+        <td>{{ d.kind }}</td>
+        <td>{% if d.kind=='percent' %}{{ d.value }}%{% else %}{{ d.currency }} {{ d.value }}{% endif %}</td>
+        <td>{{ d.applies_to }}</td>
+        <td style="font-size:.8rem">
+          {{ d.starts_at or '—' }} → {{ d.ends_at or '∞' }}
+        </td>
+        <td><span class="pill {% if d.active %}pill-green{% else %}pill-red{% endif %}">
+          {{ 'Active' if d.active else 'Off' }}</span></td>
+        <td>
+          <button class="save-btn" style="padding:.3rem .8rem;font-size:.78rem"
+                  onclick="toggleDiscount({{ d.id }})">Toggle</button>
+          <button style="background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.3);
+                         color:var(--enp-red);border-radius:6px;padding:.3rem .8rem;cursor:pointer;
+                         font-size:.78rem;margin-left:.4rem"
+                  onclick="deleteDiscount({{ d.id }})">Delete</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:var(--enp-muted);margin-bottom:1.5rem">No discounts yet. Create one below.</p>
+  {% endif %}
+
+  <div class="disc-form">
+    <h3>Create Discount</h3>
+    <form onsubmit="createDiscount(event)">
+      <div class="disc-form-grid">
+        <div>
+          <label>Label *</label>
+          <input name="label" placeholder="e.g. Early Bird 10%" required>
+        </div>
+        <div>
+          <label>Code (blank = auto-apply)</label>
+          <input name="code" placeholder="EARLYBIRD">
+        </div>
+        <div>
+          <label>Kind</label>
+          <select name="kind">
+            <option value="percent">Percent (%)</option>
+            <option value="flat">Flat amount</option>
+          </select>
+        </div>
+        <div>
+          <label>Value *</label>
+          <input name="value" type="number" step="0.01" min="0" placeholder="10" required>
+        </div>
+        <div>
+          <label>Currency (flat only)</label>
+          <select name="currency">
+            <option value="INR">INR</option>
+            <option value="USD">USD</option>
+          </select>
+        </div>
+        <div>
+          <label>Applies to (plan id or 'all')</label>
+          <input name="applies_to" value="all">
+        </div>
+        <div>
+          <label>Starts at (optional)</label>
+          <input name="starts_at" type="date">
+        </div>
+        <div>
+          <label>Ends at (optional)</label>
+          <input name="ends_at" type="date">
+        </div>
+      </div>
+      <button type="submit" class="save-btn">Create Discount</button>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast">Saved ✓</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+function showToast(msg, ok) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = ok ? 'rgba(74,222,128,.2)' : 'rgba(248,113,113,.15)';
+  t.style.borderColor = ok ? 'var(--enp-green)' : 'var(--enp-red)';
+  t.style.color = ok ? 'var(--enp-green)' : 'var(--enp-red)';
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2500);
+}
+
+function collectFeatures(pid) {
+  return Array.from(document.querySelectorAll('#feats-' + pid + ' .feat-item input'))
+    .map(i => i.value.trim()).filter(Boolean);
+}
+
+function addFeat(pid) {
+  const div = document.createElement('div');
+  div.className = 'feat-item';
+  div.innerHTML = '<input type="text" placeholder="Feature…"><button type="button" onclick="removeFeat(this)">✕</button>';
+  document.getElementById('feats-' + pid).appendChild(div);
+}
+
+function removeFeat(btn) { btn.closest('.feat-item').remove(); }
+
+async function savePlan(e, pid) {
+  e.preventDefault();
+  const form = e.target;
+  const data = new FormData(form);
+  data.set('features_json', JSON.stringify(collectFeatures(pid)));
+  const res = await fetch('/admin/catalog/plan/' + pid, {method:'POST', body: data});
+  const j = await res.json();
+  showToast(j.ok ? 'Plan saved ✓' : (j.error || 'Error'), j.ok);
+}
+
+async function saveCombo(e, cid) {
+  e.preventDefault();
+  const form = e.target;
+  const data = new FormData(form);
+  const res = await fetch('/admin/catalog/combo/' + cid, {method:'POST', body: data});
+  const j = await res.json();
+  showToast(j.ok ? 'Combo saved ✓' : (j.error || 'Error'), j.ok);
+}
+
+async function createDiscount(e) {
+  e.preventDefault();
+  const data = new FormData(e.target);
+  const res = await fetch('/admin/catalog/discount', {method:'POST', body: data});
+  const j = await res.json();
+  showToast(j.ok ? 'Discount created ✓' : (j.error || 'Error'), j.ok);
+  if (j.ok) setTimeout(() => location.reload(), 900);
+}
+
+async function toggleDiscount(id) {
+  const res = await fetch('/admin/catalog/discount/' + id + '/toggle', {method:'POST'});
+  const j = await res.json();
+  showToast(j.ok ? 'Toggled ✓' : 'Error', j.ok);
+  if (j.ok) setTimeout(() => location.reload(), 900);
+}
+
+async function deleteDiscount(id) {
+  if (!confirm('Delete this discount?')) return;
+  const res = await fetch('/admin/catalog/discount/' + id + '/delete', {method:'POST'});
+  const j = await res.json();
+  showToast(j.ok ? 'Deleted ✓' : 'Error', j.ok);
+  if (j.ok) setTimeout(() => location.reload(), 900);
+}
+</script>
+{% endblock %}

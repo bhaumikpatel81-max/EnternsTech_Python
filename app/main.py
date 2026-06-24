@@ -55,7 +55,16 @@ app.include_router(psychometric.router)
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    return templates.TemplateResponse(request, "home.html")
+    from app.services.catalog import get_catalog
+    cat = get_catalog()
+    return templates.TemplateResponse(request, "home.html", {"plans": cat["plans"]})
+
+
+@app.get("/api/content")
+async def api_content():
+    """Public read-only endpoint returning catalog data for frontend hydration."""
+    from app.services.catalog import get_catalog
+    return get_catalog()
 
 
 @app.get("/health")

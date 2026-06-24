@@ -95,6 +95,12 @@ body {
 .enp-badge--info     { background: rgba(34,211,238,.08); color: var(--enp-cyan);  border-color: var(--enp-cyan-dim); }
 .enp-badge--error    { background: rgba(248,113,113,.1); color: var(--enp-red);   border-color: rgba(248,113,113,.3); }
 
+/* ── Text colour utilities ───────────────────────────────────────────────────── */
+.enp-text--success { color: var(--enp-green); font-weight: 700; }
+.enp-text--warn    { color: var(--enp-gold);  font-weight: 700; }
+.enp-text--danger  { color: var(--enp-red);   font-weight: 700; }
+.enp-text--sm      { font-size: .88rem; }
+
 /* ── Buttons ─────────────────────────────────────────────────────────────────── */
 .enp-btn {
   display: inline-flex;

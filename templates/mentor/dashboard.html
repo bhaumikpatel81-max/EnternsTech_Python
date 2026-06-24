@@ -1,45 +1,178 @@
 {% extends "base.html" %}
 {% block title %}Mentor Portal — Enterns Tech{% endblock %}
 
+{% block head %}
+<style>
+  /* ── Layout ─────────────────────────────────────────────────────────────── */
+  .md-nav-form   { margin: 0; }
+  .md-header     { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+  .md-header__email { color: var(--enp-muted); font-size: .9rem; }
+  .md-mb         { margin-bottom: 1.5rem; }
+
+  /* ── Stat grid ───────────────────────────────────────────────────────────── */
+  .md-stat-grid  { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .md-stat__label { color: var(--enp-muted); font-size: .78rem; font-weight: 600; letter-spacing: .06em;
+                    text-transform: uppercase; margin-bottom: .4rem; }
+  .md-stat__val  { font-size: 2rem; font-weight: 700; }
+  .md-stat__val--text  { color: var(--enp-text); }
+  .md-stat__val--cyan  { color: var(--enp-cyan); }
+  .md-stat__val--green { color: var(--enp-green); }
+  .md-stat__val--gold  { color: var(--enp-gold); }
+
+  /* ── Set-slots ───────────────────────────────────────────────────────────── */
+  .md-slot-builder  { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: 1rem; }
+  .md-slot-select   { padding: .5rem .75rem; background: #0a0f1e; border: 1px solid var(--enp-border);
+                      border-radius: 8px; color: var(--enp-text); font-family: inherit; font-size: .9rem; }
+  .md-slot-time     { padding: .5rem .75rem; background: #0a0f1e; border: 1px solid var(--enp-border);
+                      border-radius: 8px; color: var(--enp-text); font-family: inherit; font-size: .9rem;
+                      width: 110px; }
+  .md-slots-list    { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; min-height: 2rem; }
+  .md-slot-chip     { display: inline-flex; align-items: center; gap: .4rem; padding: .3rem .7rem;
+                      background: rgba(34,211,238,.1); border: 1px solid var(--enp-cyan-dim);
+                      border-radius: 99px; color: var(--enp-cyan); font-size: .82rem; }
+  .md-slot-chip__rm { cursor: pointer; color: var(--enp-muted); background: none; border: none;
+                      font-size: 1rem; line-height: 1; padding: 0; font-family: inherit; }
+  .md-slot-chip__rm:hover { color: var(--enp-red); }
+  .md-slots-save    { display: flex; align-items: center; gap: .75rem; }
+  .md-slots-msg     { display: none; font-size: .85rem; }
+
+  /* ── Planned sessions ────────────────────────────────────────────────────── */
+  .md-table-wrap  { overflow-x: auto; }
+  .md-topic-cell  { color: var(--enp-muted); font-size: .88rem; }
+  .md-student-link { color: var(--enp-cyan); text-decoration: none; font-weight: 500; }
+  .md-student-link:hover { text-decoration: underline; }
+  .md-no-data     { color: var(--enp-muted); }
+
+  /* ── Students table ──────────────────────────────────────────────────────── */
+  .md-name        { font-weight: 500; }
+  .md-stack       { color: var(--enp-muted); font-size: .8rem; }
+</style>
+{% endblock %}
+
 {% block nav_links %}
   <a href="/mentor" class="active">Dashboard</a>
-  <form action="/logout" method="get" style="margin:0">
-    <button class="logout-btn">Sign Out</button>
+  <form action="/logout" method="get" class="md-nav-form">
+    <button type="submit" class="logout-btn">Sign Out</button>
   </form>
 {% endblock %}
 
 {% block content %}
 <div class="page-wrap">
-  <div class="enp-portal-header">
+
+  <!-- Header -->
+  <div class="md-header">
     <div class="enp-portal-header__title">
       <h1>Mentor Portal</h1>
       <span class="enp-badge enp-badge--mentor">Mentor</span>
     </div>
-    <span style="color:var(--enp-muted);font-size:.9rem">{{ user.email }}</span>
+    <span class="md-header__email">{{ user.email }}</span>
   </div>
 
   <!-- Stats -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem">
-    <div class="enp-card"><div style="padding:1.25rem">
-      <div style="color:var(--enp-muted);font-size:.8rem;margin-bottom:.4rem">ACTIVE STUDENTS</div>
-      <div style="font-size:2rem;font-weight:700;color:var(--enp-text)">{{ students | length }}</div>
-    </div></div>
-    <div class="enp-card"><div style="padding:1.25rem">
-      <div style="color:var(--enp-muted);font-size:.8rem;margin-bottom:.4rem">SESSIONS DONE</div>
-      <div style="font-size:2rem;font-weight:700;color:var(--enp-cyan)">{{ completed_sessions }}</div>
-    </div></div>
-    <div class="enp-card"><div style="padding:1.25rem">
-      <div style="color:var(--enp-muted);font-size:.8rem;margin-bottom:.4rem">EARNINGS PAID</div>
-      <div style="font-size:2rem;font-weight:700;color:var(--enp-green)">₹{{ "{:,.0f}".format(revenue) }}</div>
-    </div></div>
+  <div class="md-stat-grid">
+    <div class="enp-card">
+      <div class="enp-card__body">
+        <div class="md-stat__label">Active Students</div>
+        <div class="md-stat__val md-stat__val--text">{{ students | length }}</div>
+      </div>
+    </div>
+    <div class="enp-card">
+      <div class="enp-card__body">
+        <div class="md-stat__label">Sessions Done</div>
+        <div class="md-stat__val md-stat__val--cyan">{{ done_count }}</div>
+      </div>
+    </div>
+    <div class="enp-card">
+      <div class="enp-card__body">
+        <div class="md-stat__label">Sessions Planned</div>
+        <div class="md-stat__val md-stat__val--gold">{{ planned_count }}</div>
+      </div>
+    </div>
+    <div class="enp-card">
+      <div class="enp-card__body">
+        <div class="md-stat__label">Hours Mentored</div>
+        <div class="md-stat__val md-stat__val--green">{{ total_hours }}</div>
+      </div>
+    </div>
+    <div class="enp-card">
+      <div class="enp-card__body">
+        <div class="md-stat__label">Earnings Paid</div>
+        <div class="md-stat__val md-stat__val--green">₹{{ "{:,.0f}".format(revenue) }}</div>
+      </div>
+    </div>
   </div>
+
+  <!-- Set Availability Slots -->
+  <div class="enp-card md-mb">
+    <div class="enp-card__header"><h2 class="enp-card__title">Weekly Availability</h2></div>
+    <div class="enp-card__body">
+      <div class="md-slots-list" id="slots-list">
+        {% for slot in current_slots %}
+        <span class="md-slot-chip" data-day="{{ slot.day }}" data-start="{{ slot.start }}">
+          {{ slot.day }} {{ slot.start }}
+          <button type="button" class="md-slot-chip__rm" onclick="removeSlot(this)">×</button>
+        </span>
+        {% endfor %}
+      </div>
+      <div class="md-slot-builder">
+        <select id="slot-day" class="md-slot-select" aria-label="Day of week">
+          <option value="">Day</option>
+          {% for d in [('MO','Monday'),('TU','Tuesday'),('WE','Wednesday'),('TH','Thursday'),('FR','Friday'),('SA','Saturday'),('SU','Sunday')] %}
+          <option value="{{ d[0] }}">{{ d[1] }}</option>
+          {% endfor %}
+        </select>
+        <input id="slot-time" type="time" class="md-slot-time" value="09:00" aria-label="Start time">
+        <button type="button" class="enp-btn enp-btn--ghost enp-btn--sm" onclick="addSlot()">+ Add Slot</button>
+      </div>
+      <div class="md-slots-save">
+        <button type="button" class="enp-btn enp-btn--primary enp-btn--sm" onclick="saveSlots()">Save Availability</button>
+        <span id="slots-msg" class="md-slots-msg"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Planned Sessions -->
+  {% if planned_sessions %}
+  <div class="enp-card md-mb">
+    <div class="enp-card__header"><h2 class="enp-card__title">Upcoming Sessions</h2></div>
+    <div class="enp-card__body">
+      <div class="md-table-wrap">
+        <table class="enp-table">
+          <thead>
+            <tr><th>Date/Time</th><th>Student</th><th>Duration</th><th>Topic</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            {% for s in planned_sessions %}
+            <tr id="session-row-{{ s.id }}">
+              <td>{{ s.scheduled_at.strftime('%d %b %Y, %H:%M') if s.scheduled_at else '—' }}</td>
+              <td>
+                <a href="/mentor/student/{{ s.student_id }}" class="md-student-link">
+                  {{ s.student_name or '(unnamed)' }}
+                </a>
+              </td>
+              <td>{{ s.duration_min or 60 }} min</td>
+              <td class="md-topic-cell">{{ s.topic or '—' }}</td>
+              <td>
+                <button type="button" class="enp-btn enp-btn--primary enp-btn--sm"
+                        onclick="markComplete({{ s.id }})">
+                  Mark Complete
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- Students -->
   <div class="enp-card">
     <div class="enp-card__header"><h2 class="enp-card__title">Your Students</h2></div>
     <div class="enp-card__body">
       {% if students %}
-      <div style="overflow-x:auto">
+      <div class="md-table-wrap">
         <table class="enp-table">
           <thead>
             <tr><th>Name</th><th>Plan</th><th>Sessions</th><th>CV Status</th><th>Status</th></tr>
@@ -48,8 +181,8 @@
             {% for s in students %}
             <tr>
               <td>
-                <div style="font-weight:500">{{ s.full_name or '(unnamed)' }}</div>
-                <div style="color:var(--enp-muted);font-size:.8rem">{{ s.email }}</div>
+                <a href="/mentor/student/{{ s.id }}" class="md-student-link">{{ s.full_name or '(unnamed)' }}</a>
+                {% if s.tech_stack %}<div class="md-stack">{{ s.tech_stack[:80] }}</div>{% endif %}
               </td>
               <td><span class="enp-badge enp-badge--info">{{ s.plan_id | upper }}</span></td>
               <td>{{ s.sessions_used }}/{{ s.sessions_total }}</td>
@@ -58,16 +191,79 @@
                   {{ s.cv_redesign_status | replace('_',' ') | title }}
                 </span>
               </td>
-              <td><span class="enp-badge {% if s.status == 'active' %}enp-badge--success{% else %}enp-badge--warn{% endif %}">{{ s.status | title }}</span></td>
+              <td>
+                <span class="enp-badge {% if s.status == 'active' %}enp-badge--success{% else %}enp-badge--warn{% endif %}">
+                  {{ s.status | title }}
+                </span>
+              </td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
       {% else %}
-      <p style="color:var(--enp-muted)">No students assigned yet.</p>
+      <p class="md-no-data">No students assigned yet.</p>
       {% endif %}
     </div>
   </div>
-</div>
+
+</div><!-- /.page-wrap -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addSlot() {
+  const day = document.getElementById('slot-day').value;
+  const time = document.getElementById('slot-time').value;
+  if (!day || !time) { alert('Select a day and time.'); return; }
+  const list = document.getElementById('slots-list');
+  // Prevent duplicate
+  for (const chip of list.querySelectorAll('.md-slot-chip')) {
+    if (chip.dataset.day === day && chip.dataset.start === time) return;
+  }
+  const chip = document.createElement('span');
+  chip.className = 'md-slot-chip';
+  chip.dataset.day = day;
+  chip.dataset.start = time;
+  chip.innerHTML = `${day} ${time} <button type="button" class="md-slot-chip__rm" onclick="removeSlot(this)">×</button>`;
+  list.appendChild(chip);
+}
+
+function removeSlot(btn) {
+  btn.closest('.md-slot-chip').remove();
+}
+
+async function saveSlots() {
+  const chips = document.querySelectorAll('#slots-list .md-slot-chip');
+  const slots = Array.from(chips).map(c => ({ day: c.dataset.day, start: c.dataset.start }));
+  const r = await fetch('/mentor/api/set-slots', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({slots})
+  });
+  const d = await r.json();
+  const msg = document.getElementById('slots-msg');
+  msg.style.display = 'inline';
+  if (d.ok) {
+    msg.style.color = 'var(--enp-green)';
+    msg.textContent = `Saved ${d.count} slot${d.count !== 1 ? 's' : ''}.`;
+  } else {
+    msg.style.color = 'var(--enp-red)';
+    msg.textContent = d.error || 'Save failed.';
+  }
+  setTimeout(() => msg.style.display = 'none', 3000);
+}
+
+async function markComplete(sessionId) {
+  const r = await fetch(`/mentor/api/session/${sessionId}/complete`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'}
+  });
+  const d = await r.json();
+  if (d.ok) {
+    const row = document.getElementById(`session-row-${sessionId}`);
+    if (row) row.style.opacity = '.4';
+  } else {
+    alert(d.error || 'Failed to mark complete.');
+  }
+}
+</script>
 {% endblock %}

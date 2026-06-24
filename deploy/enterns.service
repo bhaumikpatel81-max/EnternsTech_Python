@@ -1,0 +1,27 @@
+[Unit]
+Description=Enterns Tech Portal (FastAPI/Uvicorn)
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=notify
+User=enterns
+Group=enterns
+WorkingDirectory=/var/www/enterns
+EnvironmentFile=/var/www/enterns/.env
+ExecStart=/var/www/enterns/venv/bin/gunicorn app.main:app \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --workers 4 \
+    --bind 127.0.0.1:8000 \
+    --timeout 60 \
+    --access-logfile /var/log/enterns/access.log \
+    --error-logfile /var/log/enterns/error.log \
+    --log-level info
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5s
+KillMode=mixed
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

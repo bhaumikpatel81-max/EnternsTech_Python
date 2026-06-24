@@ -47,6 +47,9 @@
                  border-radius:8px;color:var(--enp-text);font-size:.95rem;font-family:inherit;outline:none}
     .modal-input:focus{border-color:var(--enp-cyan)}
     .modal-error{color:var(--enp-red);font-size:.85rem;display:none;margin-top:.5rem}
+    .plan-badge{display:inline-block;background:rgba(34,211,238,.15);color:var(--enp-cyan);
+                border-radius:4px;padding:.15rem .55rem;font-size:.75rem;margin-bottom:.5rem}
+    .plan-price-intl{color:var(--enp-muted);font-size:.82rem;margin-bottom:.5rem}
   </style>
 </head>
 <body>
@@ -71,20 +74,16 @@
   <section class="plans" id="plans">
     <h2>Choose Your Plan</h2>
     <div class="plan-grid">
-      {% for plan_id, plan in [
-        ('basic',       {'name':'Basic Plan',              'price':'₹1,50,000','sessions':4,  'features':['4 mentoring sessions','CV redesign','Interview prep','Email support']}),
-        ('elite',       {'name':'Elite Plan',              'price':'₹2,50,000','sessions':6,  'features':['6 mentoring sessions','CV redesign','LinkedIn optimisation','Mock interviews','Priority support']}),
-        ('premium',     {'name':'Premium Plan',            'price':'₹3,50,000','sessions':8,  'features':['8 mentoring sessions','CV redesign','Full job prep','Portfolio review','Placement support']}),
-        ('starter',     {'name':'Career Starter Combo',   'price':'₹3,75,000','sessions':6,  'features':['6 sessions','Psychometric assessment','CV + LinkedIn','Career roadmap']}),
-        ('accelerator', {'name':'Career Accelerator Combo','price':'₹5,50,000','sessions':8, 'features':['8 sessions','Psychometric assessment','Full mentoring suite','Placement guarantee support']}),
-      ] %}
-      <div class="plan-card" id="plan-{{ plan_id }}">
+      {% for plan_id, plan in plans.items() %}
+      <div class="plan-card {% if plan.featured %}featured{% endif %}" id="plan-{{ plan_id }}">
+        {% if plan.badge %}<div class="plan-badge">{{ plan.badge }}</div>{% endif %}
         <div class="plan-name">{{ plan.name }}</div>
-        <div class="plan-price">{{ plan.price }}</div>
-        {% for feature in plan.features %}
+        <div class="plan-price">{{ plan.price_dom }}</div>
+        {% if plan.price_intl %}<div class="plan-price-intl">{{ plan.price_intl }} USD</div>{% endif %}
+        {% for feature in (plan.features or []) %}
         <div class="plan-feature"><span>✓</span>{{ feature }}</div>
         {% endfor %}
-        <button class="plan-btn" onclick="openPaymentModal('{{ plan_id }}', '{{ plan.name }}', '{{ plan.price }}')">
+        <button class="plan-btn" onclick="openPaymentModal('{{ plan_id }}','{{ plan.name }}','{{ plan.price_dom }}')">
           Enrol Now
         </button>
       </div>

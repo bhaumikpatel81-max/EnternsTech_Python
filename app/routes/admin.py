@@ -48,8 +48,13 @@ async def overview(request: Request):
 async def students(request: Request, q: str = ""):
     if not _admin_required(request):
         return RedirectResponse("/login")
-    sql = """SELECT s.*, m.full_name AS mentor_name
-             FROM students s LEFT JOIN mentors m ON s.mentor_id=m.id"""
+    sql = """
+        SELECT s.*, m.full_name AS mentor_name,
+               (SELECT MIN(ses.scheduled_at)
+                FROM sessions ses
+                WHERE ses.student_id=s.id AND ses.status='scheduled' AND ses.scheduled_at > NOW()
+               ) AS next_session_at
+        FROM students s LEFT JOIN mentors m ON s.mentor_id=m.id"""
     params = ()
     if q:
         sql += " WHERE s.full_name LIKE %s OR s.email LIKE %s"
@@ -57,9 +62,11 @@ async def students(request: Request, q: str = ""):
     sql += " ORDER BY s.created_at DESC"
     rows = fetchall(sql, params)
     mentors = fetchall("SELECT id, full_name FROM mentors WHERE status='approved' ORDER BY full_name")
+    from app.services.catalog import get_catalog
+    plan_catalog = get_catalog()["plans"]
     return templates.TemplateResponse(request, "admin/students.html", {
         "students": rows, "mentors": mentors,
-        "section": "students", "q": q, "plan_catalog": settings.PLAN_CATALOG,
+        "section": "students", "q": q, "plan_catalog": plan_catalog,
     })
 
 
@@ -71,14 +78,16 @@ async def activate_student_manual(
 ):
     if not _admin_required(request):
         return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
-    if plan_id not in settings.PLAN_PRICES:
+    from app.services.catalog import get_plan
+    plan = get_plan(plan_id)
+    if not plan:
         return JSONResponse({"ok": False, "error": "Invalid plan"})
 
     # Insert a manual payment record first
     pay_id = execute(
         """INSERT INTO payments (email, plan_id, amount, currency, gateway, status)
            VALUES (%s, %s, %s, 'INR', 'manual', 'paid')""",
-        (email, plan_id, round(settings.PLAN_PRICES[plan_id] / 100, 2)),
+        (email, plan_id, round(plan["paise"] / 100, 2)),
     )
     result = activate_student(email, plan_id, pay_id)
     return JSONResponse(result)
@@ -498,4 +507,131 @@ async def save_psy_settings(request: Request):
             "INSERT INTO app_settings (setting_key, setting_val) VALUES ('psy_rzp_plans', %s)",
             (serialised,),
         )
+    return JSONResponse({"ok": True})
+
+
+# ── Catalog (plans / combos / discounts) ─────────────────────────────────────
+
+@router.get("/catalog", response_class=HTMLResponse)
+async def catalog_page(request: Request, tab: str = "plans"):
+    if not _admin_required(request):
+        return RedirectResponse("/login")
+    from app.services.catalog import get_catalog
+    cat = get_catalog()
+    return templates.TemplateResponse(request, "admin/catalog.html", {
+        "plans":     cat["plans"],
+        "combos":    cat["combos"],
+        "discounts": cat["discounts"],
+        "section": "catalog", "tab": tab,
+    })
+
+
+@router.post("/catalog/plan/{plan_id}")
+async def update_plan(
+    request: Request,
+    plan_id: str,
+    name:       str = Form(...),
+    tagline:    str = Form(""),
+    price_dom:  str = Form(""),
+    price_intl: str = Form(""),
+    paise:      int = Form(...),
+    cents:      int = Form(0),
+    sessions:   int = Form(4),
+    badge:      str = Form(""),
+    featured:   int = Form(0),
+    active:     int = Form(1),
+    sort_order: int = Form(0),
+):
+    if not _admin_required(request):
+        return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
+    sessions = max(4, min(8, sessions))  # clamp 4–8 (Requirement 7)
+    form = await request.form()
+    features_json = form.get("features_json", "[]")
+    try:
+        features = json.loads(features_json)
+    except Exception:
+        features = []
+    execute(
+        """UPDATE plans
+           SET name=%s, tagline=%s, price_dom=%s, price_intl=%s,
+               paise=%s, cents=%s, sessions=%s, badge=%s,
+               featured=%s, active=%s, sort_order=%s
+           WHERE id=%s""",
+        (name, tagline, price_dom, price_intl, paise, cents,
+         sessions, badge, bool(featured), bool(active), sort_order, plan_id),
+    )
+    execute("DELETE FROM plan_features WHERE plan_id=%s", (plan_id,))
+    for i, feat in enumerate(features):
+        if str(feat).strip():
+            execute(
+                "INSERT INTO plan_features (plan_id, feature, sort_order) VALUES (%s,%s,%s)",
+                (plan_id, str(feat).strip(), i),
+            )
+    return JSONResponse({"ok": True})
+
+
+@router.post("/catalog/combo/{combo_id}")
+async def update_combo(
+    request: Request,
+    combo_id:   str,
+    name:       str = Form(...),
+    price_dom:  str = Form(""),
+    price_intl: str = Form(""),
+    paise:      int = Form(...),
+    cents:      int = Form(0),
+    note:       str = Form(""),
+    active:     int = Form(1),
+    sort_order: int = Form(0),
+):
+    if not _admin_required(request):
+        return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
+    execute(
+        """UPDATE combos
+           SET name=%s, price_dom=%s, price_intl=%s, paise=%s, cents=%s,
+               note=%s, active=%s, sort_order=%s
+           WHERE id=%s""",
+        (name, price_dom, price_intl, paise, cents,
+         note, bool(active), sort_order, combo_id),
+    )
+    return JSONResponse({"ok": True})
+
+
+@router.post("/catalog/discount")
+async def create_discount(
+    request: Request,
+    label:      str   = Form(...),
+    code:       str   = Form(""),
+    kind:       str   = Form("percent"),
+    value:      float = Form(...),
+    currency:   str   = Form("INR"),
+    applies_to: str   = Form("all"),
+    starts_at:  str   = Form(""),
+    ends_at:    str   = Form(""),
+):
+    if not _admin_required(request):
+        return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
+    code_val = code.strip() or None
+    sa = starts_at.strip() or None
+    ea = ends_at.strip() or None
+    execute(
+        """INSERT INTO discounts (label, code, kind, value, currency, applies_to, starts_at, ends_at)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+        (label, code_val, kind, value, currency.upper(), applies_to, sa, ea),
+    )
+    return JSONResponse({"ok": True})
+
+
+@router.post("/catalog/discount/{discount_id}/toggle")
+async def toggle_discount(request: Request, discount_id: int):
+    if not _admin_required(request):
+        return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
+    execute("UPDATE discounts SET active = 1 - active WHERE id=%s", (discount_id,))
+    return JSONResponse({"ok": True})
+
+
+@router.post("/catalog/discount/{discount_id}/delete")
+async def delete_discount(request: Request, discount_id: int):
+    if not _admin_required(request):
+        return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
+    execute("DELETE FROM discounts WHERE id=%s", (discount_id,))
     return JSONResponse({"ok": True})

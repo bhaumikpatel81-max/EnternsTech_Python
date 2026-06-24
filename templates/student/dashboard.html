@@ -1,74 +1,180 @@
 {% extends "base.html" %}
 {% block title %}Student Portal — Enterns Tech{% endblock %}
 
+{% block head %}
+<style>
+  /* ── Layout ─────────────────────────────────────────────────────────────── */
+  .sd-nav-form   { margin: 0; }
+  .sd-header     { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+  .sd-header__email { color: var(--enp-muted); font-size: .9rem; }
+  .sd-two-col    { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+  .sd-mb         { margin-bottom: 1.5rem; }
+
+  /* ── Plan stat grid ─────────────────────────────────────────────────────── */
+  .sd-stat-grid  { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; }
+  .sd-stat__label { color: var(--enp-muted); font-size: .78rem; font-weight: 600; letter-spacing: .06em;
+                    text-transform: uppercase; margin-bottom: .3rem; }
+  .sd-stat__value { font-weight: 600; }
+  .sd-stat__value--cyan   { font-weight: 600; color: var(--enp-cyan); }
+  .sd-cv-link    { color: var(--enp-cyan); font-size: .82rem; margin-left: .4rem; }
+  .sd-stat__muted { color: var(--enp-muted); font-size: .85rem; }
+  .sd-next-topic  { color: var(--enp-muted); font-size: .8rem; }
+
+  /* ── Upgrade cards ──────────────────────────────────────────────────────── */
+  .sd-upgrade-grid  { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+  .sd-upgrade-card  { cursor: pointer; }
+  .sd-upgrade-body  { padding: 1.25rem; }
+  .sd-upgrade-name  { font-weight: 700; color: var(--enp-text); margin-bottom: .4rem; }
+  .sd-upgrade-price { color: var(--enp-cyan); font-size: 1.2rem; font-weight: 700; }
+  .sd-upgrade-meta  { color: var(--enp-muted); font-size: .85rem; margin-top: .3rem; }
+  .sd-upgrade-note  { color: var(--enp-muted); font-size: .78rem; margin-top: .2rem; }
+
+  /* ── Mentor card ────────────────────────────────────────────────────────── */
+  .sd-mentor-row   { display: flex; align-items: center; gap: 1rem; }
+  .sd-avatar       { width: 56px; height: 56px; border-radius: 50%; object-fit: cover;
+                     border: 2px solid var(--enp-border); flex-shrink: 0; }
+  .sd-avatar-init  { width: 56px; height: 56px; border-radius: 50%; background: var(--enp-border);
+                     display: flex; align-items: center; justify-content: center;
+                     color: var(--enp-cyan); font-size: 1.4rem; flex-shrink: 0; }
+  .sd-mentor-name  { font-weight: 600; }
+  .sd-mentor-stack { color: var(--enp-muted); font-size: .85rem; }
+  .sd-muted-p      { color: var(--enp-muted); }
+
+  /* ── Skills ─────────────────────────────────────────────────────────────── */
+  .sd-textarea     { width: 100%; min-height: 80px; background: #0a0f1e;
+                     border: 1px solid var(--enp-border); border-radius: 8px;
+                     color: var(--enp-text); font-size: .9rem; padding: .75rem;
+                     resize: vertical; font-family: inherit; }
+  .sd-save-btn-wrap { margin-top: .75rem; }
+  .sd-skills-msg   { color: var(--enp-green); font-size: .85rem; margin-left: .5rem; display: none; }
+
+  /* ── Book-slot ───────────────────────────────────────────────────────────── */
+  .sd-slot-hint   { color: var(--enp-muted); font-size: .9rem; margin-bottom: 1rem; }
+  .sd-slots-grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                    gap: .6rem; margin-bottom: 1rem; }
+  .sd-slot-btn    { background: rgba(34,211,238,.08); border: 1px solid var(--enp-cyan-dim);
+                    color: var(--enp-cyan); border-radius: 8px; padding: .55rem .75rem;
+                    font-size: .85rem; cursor: pointer; font-family: inherit; text-align: left;
+                    transition: background .15s; }
+  .sd-slot-btn:hover, .sd-slot-btn.selected { background: rgba(34,211,238,.2); border-color: var(--enp-cyan); }
+  .sd-slot-input  { width: 100%; padding: .6rem 1rem; background: #0a0f1e;
+                    border: 1px solid var(--enp-border); border-radius: 8px;
+                    color: var(--enp-text); font-family: inherit; font-size: .9rem;
+                    margin-bottom: .75rem; }
+  .sd-book-msg    { display: none; margin-left: .75rem; font-size: .85rem; }
+
+  /* ── Sessions table ─────────────────────────────────────────────────────── */
+  .sd-table-wrap  { overflow-x: auto; }
+  .sd-td-topic    { color: var(--enp-muted); font-size: .88rem; }
+  .sd-no-data     { color: var(--enp-muted); }
+
+  /* ── Modals ──────────────────────────────────────────────────────────────── */
+  .sd-modal       { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6);
+                    z-index: 200; align-items: center; justify-content: center; }
+  .sd-modal__inner { background: var(--enp-surface); border: 1px solid var(--enp-border);
+                     border-radius: 16px; padding: 2rem; width: 90%; overflow-y: auto; }
+  .sd-modal__inner--lg  { max-width: 600px; max-height: 80vh; }
+  .sd-modal__inner--sm  { max-width: 480px; }
+  .sd-modal__title { color: var(--enp-text); margin: 0 0 1.5rem; }
+  .sd-modal__title--sm { margin: 0 0 1rem; }
+  .sd-modal-grid  { display: grid; gap: .75rem; }
+  .sd-mentor-row-modal { display: flex; align-items: center; gap: 1rem; padding: 1rem;
+                          background: #0a0f1e; border: 1px solid var(--enp-border); border-radius: 10px; }
+  .sd-mentor-row-modal__info { flex: 1; }
+  .sd-modal-cancel { margin-top: 1.5rem; width: 100%; }
+  .sd-change-textarea { width: 100%; min-height: 100px; background: #0a0f1e;
+                        border: 1px solid var(--enp-border); border-radius: 8px;
+                        color: var(--enp-text); font-size: .9rem; padding: .75rem;
+                        resize: vertical; font-family: inherit; }
+  .sd-change-actions  { display: flex; gap: .75rem; margin-top: 1rem; }
+  .sd-change-actions .enp-btn--primary { flex: 1; }
+  .sd-change-msg  { display: none; margin-top: .75rem; color: var(--enp-green); font-size: .9rem; }
+</style>
+{% endblock %}
+
 {% block nav_links %}
   <a href="/student" class="active">Dashboard</a>
-  <form action="/logout" method="get" style="margin:0">
-    <button class="logout-btn">Sign Out</button>
+  <form action="/logout" method="get" class="sd-nav-form">
+    <button type="submit" class="logout-btn">Sign Out</button>
   </form>
 {% endblock %}
 
 {% block content %}
 <div class="page-wrap">
-  <div class="enp-portal-header">
+
+  <!-- Header -->
+  <div class="sd-header">
     <div class="enp-portal-header__title">
       <h1>Student Portal</h1>
       <span class="enp-badge enp-badge--student">{{ student.plan_id | upper if student else '' }}</span>
     </div>
-    <div>
-      <span style="color:var(--enp-muted);font-size:.9rem">{{ user.email }}</span>
-    </div>
+    <span class="sd-header__email">{{ user.email }}</span>
   </div>
 
-  <!-- Plan Info -->
-  <div class="enp-card" style="margin-bottom:1.5rem">
+  <!-- Plan stats -->
+  <div class="enp-card sd-mb">
     <div class="enp-card__header">
       <h2 class="enp-card__title">Your Plan</h2>
     </div>
-    <div class="enp-card__body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem">
+    <div class="enp-card__body sd-stat-grid">
       <div>
-        <div style="color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">PLAN</div>
-        <div style="font-weight:600;color:var(--enp-cyan)">{{ plan_info.get('name','—') }}</div>
+        <div class="sd-stat__label">Plan</div>
+        <div class="sd-stat__value--cyan">{{ plan_info.get('name','—') }}</div>
       </div>
       <div>
-        <div style="color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">SESSIONS</div>
-        <div style="font-weight:600">{{ student.sessions_used }}/{{ student.sessions_total }}</div>
+        <div class="sd-stat__label">Sessions Used</div>
+        <div class="sd-stat__value">{{ student.sessions_used }}/{{ student.sessions_total }}</div>
       </div>
       <div>
-        <div style="color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">CV REDESIGN</div>
-        <div>
-          <span class="enp-badge {% if student.cv_redesign_status == 'done' %}enp-badge--success{% elif student.cv_redesign_status == 'in_progress' %}enp-badge--warn{% else %}enp-badge--info{% endif %}">
-            {{ student.cv_redesign_status | replace('_',' ') | title }}
-          </span>
+        <div class="sd-stat__label">Sessions Remaining</div>
+        <div class="{% if sessions_remaining > 2 %}enp-text--success{% elif sessions_remaining > 0 %}enp-text--warn{% else %}enp-text--danger{% endif %}">
+          {{ sessions_remaining }}
         </div>
       </div>
       <div>
-        <div style="color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">STATUS</div>
-        <div>
-          <span class="enp-badge {% if student.status == 'active' %}enp-badge--success{% else %}enp-badge--warn{% endif %}">
-            {{ student.status | title }}
-          </span>
-        </div>
+        <div class="sd-stat__label">Next Session</div>
+        {% if next_session %}
+          <div class="enp-text--sm">
+            <strong>{{ next_session.scheduled_at.strftime('%d %b, %H:%M') if next_session.scheduled_at else '—' }}</strong>
+            {% if next_session.topic %}
+            <div class="sd-next-topic">{{ next_session.topic }}</div>
+            {% endif %}
+          </div>
+        {% else %}
+          <div class="sd-stat__muted">None booked</div>
+        {% endif %}
+      </div>
+      <div>
+        <div class="sd-stat__label">CV Redesign</div>
+        <span class="enp-badge {% if student.cv_redesign_status == 'done' %}enp-badge--success{% elif student.cv_redesign_status == 'in_progress' %}enp-badge--warn{% else %}enp-badge--info{% endif %}">
+          {{ student.cv_redesign_status | replace('_',' ') | title }}
+        </span>
+        {% if student.cv_url and student.cv_redesign_status == 'done' %}
+        <a href="{{ student.cv_url }}" target="_blank" rel="noopener" class="sd-cv-link">Download CV</a>
+        {% endif %}
+      </div>
+      <div>
+        <div class="sd-stat__label">Status</div>
+        <span class="enp-badge {% if student.status == 'active' %}enp-badge--success{% else %}enp-badge--warn{% endif %}">
+          {{ student.status | title }}
+        </span>
       </div>
     </div>
   </div>
 
-  <!-- Upgrade plan section (if applicable) -->
-  {% set upgrades = [] %}
-  {% for pid, pinfo in plan_catalog.items() %}
-    {% if pinfo.paise > plan_info.get('paise', 0) %}{% set _ = upgrades.append((pid, pinfo)) %}{% endif %}
-  {% endfor %}
-  {% if upgrades %}
-  <div class="enp-card" style="margin-bottom:1.5rem" id="upgrade-section">
+  <!-- Upgrade section -->
+  {% if upgrade_plans %}
+  <div class="enp-card sd-mb">
     <div class="enp-card__header"><h2 class="enp-card__title">Upgrade Your Plan</h2></div>
     <div class="enp-card__body">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem" id="plan-grid">
-        {% for pid, pinfo in upgrades %}
-        <div class="enp-card" style="cursor:pointer;border-color:var(--enp-border)" onclick="startPayment('{{ pid }}')">
-          <div style="padding:1.25rem">
-            <div style="font-weight:700;color:var(--enp-text);margin-bottom:.4rem">{{ pinfo.name }}</div>
-            <div style="color:var(--enp-cyan);font-size:1.2rem;font-weight:700">{{ pinfo.price_display }}</div>
-            <div style="color:var(--enp-muted);font-size:.85rem;margin-top:.3rem">{{ pinfo.sessions }} sessions</div>
+      <div class="sd-upgrade-grid">
+        {% for pid, pinfo in upgrade_plans.items() %}
+        <div class="enp-card sd-upgrade-card" onclick="startUpgrade('{{ pid }}','{{ pinfo.name }}','{{ pinfo.price_dom }}')">
+          <div class="sd-upgrade-body">
+            <div class="sd-upgrade-name">{{ pinfo.name }}</div>
+            <div class="sd-upgrade-price">{{ pinfo.price_dom }}</div>
+            <div class="sd-upgrade-meta">{{ pinfo.sessions }} sessions</div>
+            <div class="sd-upgrade-note">You pay the difference</div>
           </div>
         </div>
         {% endfor %}
@@ -77,146 +183,257 @@
   </div>
   {% endif %}
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
-    <!-- Your Mentor -->
+  <!-- Mentor + Skills -->
+  <div class="sd-two-col">
     <div class="enp-card">
       <div class="enp-card__header">
         <h2 class="enp-card__title">Your Mentor</h2>
-        {% if mentor %}<button class="enp-btn enp-btn--ghost enp-btn--sm" onclick="document.getElementById('change-mentor-modal').style.display='flex'">Request Change</button>{% endif %}
+        {% if mentor %}
+        <button type="button" class="enp-btn enp-btn--ghost enp-btn--sm"
+                onclick="document.getElementById('change-mentor-modal').style.display='flex'">
+          Request Change
+        </button>
+        {% endif %}
       </div>
       <div class="enp-card__body">
         {% if mentor %}
-        <div style="display:flex;align-items:center;gap:1rem">
+        <div class="sd-mentor-row">
           {% if mentor.photo_url %}
-          <img src="{{ mentor.photo_url }}" alt="{{ mentor.full_name }}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--enp-border)">
+          <img src="{{ mentor.photo_url }}" alt="{{ mentor.full_name }}" class="sd-avatar">
           {% else %}
-          <div style="width:56px;height:56px;border-radius:50%;background:var(--enp-border);display:flex;align-items:center;justify-content:center;color:var(--enp-cyan);font-size:1.4rem">
-            {{ mentor.full_name[0] | upper }}
-          </div>
+          <div class="sd-avatar-init">{{ mentor.full_name[0] | upper }}</div>
           {% endif %}
           <div>
-            <div style="font-weight:600">{{ mentor.full_name }}</div>
-            <div style="color:var(--enp-muted);font-size:.85rem">{{ mentor.tech_stack[:80] if mentor.tech_stack else '' }}</div>
+            <div class="sd-mentor-name">{{ mentor.full_name }}</div>
+            <div class="sd-mentor-stack">{{ mentor.tech_stack[:80] if mentor.tech_stack else '' }}</div>
+            {% if mentor.linkedin %}
+            <a href="{{ mentor.linkedin }}" target="_blank" rel="noopener" class="sd-cv-link">LinkedIn</a>
+            {% endif %}
           </div>
         </div>
         {% else %}
-        <p style="color:var(--enp-muted)">No mentor assigned yet.</p>
-        <button class="enp-btn enp-btn--primary enp-btn--sm" onclick="document.getElementById('pick-mentor-modal').style.display='flex'">Pick a Mentor</button>
+        <p class="sd-muted-p">No mentor assigned yet.</p>
+        <button type="button" class="enp-btn enp-btn--primary enp-btn--sm"
+                onclick="document.getElementById('pick-mentor-modal').style.display='flex'">
+          Pick a Mentor
+        </button>
         {% endif %}
       </div>
     </div>
 
-    <!-- Skills -->
     <div class="enp-card">
       <div class="enp-card__header"><h2 class="enp-card__title">Your Skills</h2></div>
       <div class="enp-card__body">
-        <textarea id="skills-input" style="width:100%;min-height:80px;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-size:.9rem;padding:.75rem;resize:vertical;font-family:inherit" placeholder="e.g. Python, React, SQL, Machine Learning...">{{ student.tech_stack or '' }}</textarea>
-        <button class="enp-btn enp-btn--primary enp-btn--sm" style="margin-top:.75rem" onclick="saveSkills()">Save Skills</button>
-        <span id="skills-msg" style="color:var(--enp-green);font-size:.85rem;margin-left:.5rem;display:none">Saved!</span>
+        <textarea id="skills-input" class="sd-textarea"
+                  placeholder="e.g. Python, React, SQL, Machine Learning...">{{ student.tech_stack or '' }}</textarea>
+        <div class="sd-save-btn-wrap">
+          <button type="button" class="enp-btn enp-btn--primary enp-btn--sm" onclick="saveSkills()">
+            Save Skills
+          </button>
+          <span id="skills-msg" class="sd-skills-msg">Saved!</span>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Sessions -->
+  <!-- Book a slot -->
+  {% if mentor and open_slots and sessions_remaining > 0 %}
+  <div class="enp-card sd-mb">
+    <div class="enp-card__header"><h2 class="enp-card__title">Book a Session</h2></div>
+    <div class="enp-card__body">
+      <p class="sd-slot-hint">
+        Select an available slot with {{ mentor.full_name }}. Add an optional topic before confirming.
+      </p>
+      <div class="sd-slots-grid" id="slots-grid">
+        {% for slot in open_slots %}
+        <button type="button" class="sd-slot-btn" data-dt="{{ slot.datetime }}"
+                onclick="selectSlot(this,'{{ slot.datetime }}','{{ slot.display }}')">
+          {{ slot.display }}
+        </button>
+        {% endfor %}
+      </div>
+      <input id="slot-topic" type="text" class="sd-slot-input" placeholder="Topic (optional)">
+      <button type="button" class="enp-btn enp-btn--primary enp-btn--sm"
+              onclick="confirmBooking()" disabled id="book-btn">
+        Confirm Booking
+      </button>
+      <span id="book-msg" class="sd-book-msg"></span>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Sessions table -->
   <div class="enp-card">
     <div class="enp-card__header"><h2 class="enp-card__title">Sessions</h2></div>
     <div class="enp-card__body">
       {% if sessions %}
-      <div style="overflow-x:auto">
+      <div class="sd-table-wrap">
         <table class="enp-table">
-          <thead><tr><th>Date</th><th>Mentor</th><th>Duration</th><th>Status</th></tr></thead>
+          <thead>
+            <tr><th>Date</th><th>Mentor</th><th>Duration</th><th>Status</th><th>Topic</th></tr>
+          </thead>
           <tbody>
             {% for s in sessions %}
             <tr>
               <td>{{ s.scheduled_at.strftime('%d %b %Y, %H:%M') if s.scheduled_at else '—' }}</td>
               <td>{{ s.mentor_name if s.get('mentor_name') else '—' }}</td>
               <td>{{ s.duration_min }} min</td>
-              <td><span class="enp-badge {% if s.status == 'completed' %}enp-badge--success{% elif s.status == 'cancelled' %}enp-badge--error{% else %}enp-badge--info{% endif %}">{{ s.status | title }}</span></td>
+              <td>
+                <span class="enp-badge
+                  {% if s.status == 'completed' %}enp-badge--success
+                  {% elif s.status == 'cancelled' %}enp-badge--error
+                  {% elif s.status == 'scheduled' %}enp-badge--warn
+                  {% else %}enp-badge--info{% endif %}">
+                  {{ s.status | title }}
+                </span>
+              </td>
+              <td class="sd-td-topic">{{ s.topic or '—' }}</td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
       {% else %}
-      <p style="color:var(--enp-muted)">No sessions yet.</p>
+      <p class="sd-no-data">No sessions yet.</p>
       {% endif %}
     </div>
   </div>
-</div>
+
+</div><!-- /.page-wrap -->
 
 <!-- Pick Mentor Modal -->
-<div id="pick-mentor-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center">
-  <div style="background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;padding:2rem;max-width:600px;width:90%;max-height:80vh;overflow-y:auto">
-    <h3 style="color:var(--enp-text);margin:0 0 1.5rem">Choose a Mentor</h3>
-    <div style="display:grid;gap:.75rem">
+<div id="pick-mentor-modal" class="sd-modal">
+  <div class="sd-modal__inner sd-modal__inner--lg">
+    <h3 class="sd-modal__title">Choose a Mentor</h3>
+    <div class="sd-modal-grid">
       {% for m in mentors %}
-      <div style="display:flex;align-items:center;gap:1rem;padding:1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:10px">
-        <div style="flex:1">
-          <div style="font-weight:600">{{ m.full_name }}</div>
-          <div style="color:var(--enp-muted);font-size:.85rem">{{ (m.tech_stack or '')[:100] }}</div>
+      <div class="sd-mentor-row-modal">
+        <div class="sd-mentor-row-modal__info">
+          <div class="sd-mentor-name">{{ m.full_name }}</div>
+          <div class="sd-mentor-stack">{{ (m.tech_stack or '')[:100] }}</div>
         </div>
-        <button class="enp-btn enp-btn--primary enp-btn--sm" onclick="pickMentor({{ m.id }})">Select</button>
+        <button type="button" class="enp-btn enp-btn--primary enp-btn--sm"
+                onclick="pickMentor({{ m.id }})">Select</button>
       </div>
       {% endfor %}
     </div>
-    <button class="enp-btn enp-btn--ghost" style="margin-top:1.5rem;width:100%" onclick="document.getElementById('pick-mentor-modal').style.display='none'">Cancel</button>
+    <button type="button" class="enp-btn enp-btn--ghost sd-modal-cancel"
+            onclick="document.getElementById('pick-mentor-modal').style.display='none'">
+      Cancel
+    </button>
   </div>
 </div>
 
 <!-- Change Mentor Modal -->
-<div id="change-mentor-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center">
-  <div style="background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;padding:2rem;max-width:480px;width:90%">
-    <h3 style="color:var(--enp-text);margin:0 0 1rem">Request Mentor Change</h3>
-    <textarea id="change-reason" style="width:100%;min-height:100px;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-size:.9rem;padding:.75rem;resize:vertical;font-family:inherit" placeholder="Please explain why you'd like to change your mentor..."></textarea>
-    <div style="display:flex;gap:.75rem;margin-top:1rem">
-      <button class="enp-btn enp-btn--primary" style="flex:1" onclick="requestMentorChange()">Submit Request</button>
-      <button class="enp-btn enp-btn--ghost" onclick="document.getElementById('change-mentor-modal').style.display='none'">Cancel</button>
+<div id="change-mentor-modal" class="sd-modal">
+  <div class="sd-modal__inner sd-modal__inner--sm">
+    <h3 class="sd-modal__title sd-modal__title--sm">Request Mentor Change</h3>
+    <textarea id="change-reason" class="sd-change-textarea"
+              placeholder="Please explain why you'd like to change your mentor..."></textarea>
+    <div class="sd-change-actions">
+      <button type="button" class="enp-btn enp-btn--primary" onclick="requestMentorChange()">
+        Submit Request
+      </button>
+      <button type="button" class="enp-btn enp-btn--ghost"
+              onclick="document.getElementById('change-mentor-modal').style.display='none'">
+        Cancel
+      </button>
     </div>
-    <div id="change-msg" style="display:none;margin-top:.75rem;color:var(--enp-green);font-size:.9rem">Request submitted. Admin will review it.</div>
+    <div id="change-msg" class="sd-change-msg">Request submitted. Admin will review it.</div>
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-async function saveSkills(){
-  const skills=document.getElementById('skills-input').value;
-  const r=await fetch('/student/api/update-skills',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tech_stack:skills})});
-  const d=await r.json();
-  const msg=document.getElementById('skills-msg');
-  msg.style.display='inline';
-  setTimeout(()=>msg.style.display='none',3000);
-}
-async function pickMentor(mentorId){
-  const r=await fetch('/student/api/pick-mentor',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mentor_id:mentorId})});
-  const d=await r.json();
-  if(d.ok) location.reload();
-}
-async function requestMentorChange(){
-  const reason=document.getElementById('change-reason').value.trim();
-  if(!reason) return;
-  const r=await fetch('/student/api/request-mentor-change',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason})});
-  const d=await r.json();
-  if(d.ok){
-    document.getElementById('change-msg').style.display='block';
-    setTimeout(()=>document.getElementById('change-mentor-modal').style.display='none',2000);
+const _email = '{{ user.email }}';
+let _selectedSlot = null;
+
+async function saveSkills() {
+  const skills = document.getElementById('skills-input').value;
+  const r = await fetch('/student/api/update-skills', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({tech_stack: skills})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    const msg = document.getElementById('skills-msg');
+    msg.style.display = 'inline';
+    setTimeout(() => msg.style.display = 'none', 3000);
   }
 }
-function startPayment(planId){
-  const email='{{ user.email }}';
-  fetch('/api/payments/create-order',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({plan_id:planId,email})})
-  .then(r=>r.json()).then(d=>{
-    if(!d.ok){alert(d.error);return;}
-    const rzp=new Razorpay({
-      key:d.key_id,amount:d.amount,currency:d.currency,order_id:d.order_id,
-      name:'Enterns Tech',description:'Plan Upgrade',
-      handler:function(resp){
-        fetch('/api/payments/verify',{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({...resp,payment_id:d.payment_id,email})})
-        .then(r=>r.json()).then(v=>{if(v.ok)location.href=v.redirect;else alert(v.error);});
+
+async function pickMentor(mentorId) {
+  const r = await fetch('/student/api/pick-mentor', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({mentor_id: mentorId})
+  });
+  const d = await r.json();
+  if (d.ok) location.reload();
+}
+
+async function requestMentorChange() {
+  const reason = document.getElementById('change-reason').value.trim();
+  if (!reason) return;
+  const r = await fetch('/student/api/request-mentor-change', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({reason})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    document.getElementById('change-msg').style.display = 'block';
+    setTimeout(() => document.getElementById('change-mentor-modal').style.display = 'none', 2000);
+  }
+}
+
+function selectSlot(btn, dt, display) {
+  document.querySelectorAll('.sd-slot-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  _selectedSlot = dt;
+  document.getElementById('book-btn').disabled = false;
+}
+
+async function confirmBooking() {
+  if (!_selectedSlot) return;
+  const topic = document.getElementById('slot-topic').value.trim();
+  const r = await fetch('/student/api/book-slot', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({datetime: _selectedSlot, topic})
+  });
+  const d = await r.json();
+  const msg = document.getElementById('book-msg');
+  msg.style.display = 'inline';
+  if (d.ok) {
+    msg.style.color = 'var(--enp-green)';
+    msg.textContent = 'Booked! Reloading…';
+    setTimeout(() => location.reload(), 1200);
+  } else {
+    msg.style.color = 'var(--enp-red)';
+    msg.textContent = d.error || 'Booking failed.';
+  }
+}
+
+function startUpgrade(planId, planName, priceDisplay) {
+  if (!confirm(`Upgrade to ${planName} (${priceDisplay})? You will pay the price difference.`)) return;
+  fetch('/student/api/request-upgrade', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({plan_id: planId, email: _email})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (!d.ok) { alert(d.error); return; }
+    const rzp = new Razorpay({
+      key: d.key_id, amount: d.amount, currency: d.currency, order_id: d.order_id,
+      name: 'Enterns Tech', description: 'Plan Upgrade — ' + planName,
+      handler: function(resp) {
+        fetch('/api/payments/verify', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({...resp, payment_id: d.payment_id, email: _email})
+        })
+        .then(r => r.json())
+        .then(v => { if (v.ok) location.href = v.redirect; else alert(v.error); });
       },
-      prefill:{email},theme:{color:'#22D3EE'}
+      prefill: {email: _email}, theme: {color: '#22D3EE'}
     });
     rzp.open();
   });
