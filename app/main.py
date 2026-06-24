@@ -1,3 +1,4 @@
+import logging
 import os
 import pymysql
 from fastapi import FastAPI, Request
@@ -10,6 +11,11 @@ from app.routes import auth, student, mentor, admin, payments, partner, psychome
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 app = FastAPI(title="Enterns Tech Portal", docs_url=None, redoc_url=None)
+
+from app.config import settings as _settings
+logging.getLogger("uvicorn.error").info(
+    "DB target -> host=%s db=%s user=%s", _settings.DB_HOST, _settings.DB_NAME, _settings.DB_USER
+)
 
 
 # ── Global error handlers ────────────────────────────────────────────────────

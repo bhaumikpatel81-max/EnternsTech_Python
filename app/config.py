@@ -1,5 +1,12 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+import os
+
+# Absolute path to the repo root so .env is found no matter the working
+# directory (systemd/gunicorn may launch from elsewhere).
+_ENV_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"
+)
 
 
 class Settings(BaseSettings):
@@ -57,7 +64,7 @@ class Settings(BaseSettings):
     PSY_LINK_EXPIRY_DAYS: int = 7
 
     class Config:
-        env_file = ".env"
+        env_file = _ENV_PATH
         extra = "ignore"
 
 
