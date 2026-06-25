@@ -1,0 +1,5 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home3/seveleme/enternstech_app
+    - /bin/cp -R ./* $DEPLOYPATH 2>/dev/null || true
