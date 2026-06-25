@@ -26,12 +26,11 @@ async def db_operational_error(request: Request, exc: pymysql.err.OperationalErr
         "Database connection failed.\n\n"
         f"Error: {exc}\n\n"
         "Check your .env file:\n"
-        "  DB_HOST  — must be your real Bluehost server hostname (not the placeholder)\n"
-        "  DB_NAME  — full name including cPanel prefix, e.g. u12345678_enternstech\n"
-        "  DB_USER  — full username with prefix, e.g. u12345678_entuser\n"
+        "  DB_HOST  — must be 'localhost' (app and DB are on the same Bluehost server)\n"
+        "  DB_NAME  — full name including cPanel prefix, e.g. seveleme_enternstech\n"
+        "  DB_USER  — full username with prefix, e.g. seveleme_<dbuser>\n"
         "  DB_PASS  — your database password\n\n"
-        "Also ensure Remote MySQL is enabled in Bluehost cPanel → Remote MySQL → add % as host.\n"
-        "After editing .env, restart uvicorn."
+        "After editing .env, restart the app in cPanel → Application Manager."
     )
     return PlainTextResponse(msg, status_code=503)
 
