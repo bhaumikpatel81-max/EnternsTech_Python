@@ -6,6 +6,7 @@ Psychometric candidate flow:
   POST /api/psy/autosave         → per-section autosave
   POST /api/psy/submit           → submit + score (rate-limited)
 """
+from __future__ import annotations
 import json
 import os
 import secrets

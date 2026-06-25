@@ -1,3 +1,4 @@
+from __future__ import annotations
 import pymysql
 import pymysql.cursors
 from contextlib import contextmanager

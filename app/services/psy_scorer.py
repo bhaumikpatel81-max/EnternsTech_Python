@@ -3,6 +3,7 @@ Psychometric scoring engine — Python port of ENP_Psy_Scorer (PHP).
 
 SECURITY: correct + reverse_scored are read from DB only, never from client.
 """
+from __future__ import annotations
 import json
 from app.database import fetchall, fetchone, execute
 
