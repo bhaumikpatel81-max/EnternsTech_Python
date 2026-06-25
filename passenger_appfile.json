@@ -1,0 +1,5 @@
+{
+  "name": "EnternsTech",
+  "type": "wsgi",
+  "startup_file": "passenger_wsgi.py"
+}
