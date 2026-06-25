@@ -19,6 +19,7 @@ admin-portal/config.php
 __pycache__/
 *.pyc
 *.pyo
+.htaccess
 .venv/
 venv/
 env/
