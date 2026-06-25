@@ -1,14 +1,14 @@
-# Disable Apache output compression for the Passenger app.
-# Apache's mod_deflate was corrupting the gzipped response (full page
-# compressed to a broken 23-byte blob -> blank screen).
+# ── Hand ALL requests to the Passenger Python app ──────────────────────────────
+# This replaces WordPress's rewrite rules. WordPress files remain on disk but
+# no longer handle requests. The portal (enternstech_app) now serves the domain.
+
+PassengerEnabled On
+PassengerAppRoot "/home3/seveleme/enternstech_app"
+PassengerBaseURI "/"
+PassengerPython "/home3/seveleme/enternstech_app/venv/bin/python"
+PassengerAppType wsgi
+PassengerStartupFile passenger_wsgi.py
+
+# Disable Apache gzip (it was corrupting the response to 23 bytes)
 SetEnv no-gzip 1
 SetEnv dont-vary 1
-
-<IfModule mod_deflate.c>
-  SetEnvIfNoCase Request_URI .* no-gzip dont-vary
-</IfModule>
-
-<IfModule mod_headers.c>
-  # Ensure no stale content-encoding is advertised
-  Header unset Content-Encoding
-</IfModule>
