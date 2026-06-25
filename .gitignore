@@ -27,7 +27,6 @@ env/
 
 # Never commit secrets
 .env
-*.env
 
 # Uploads
 public/uploads/
