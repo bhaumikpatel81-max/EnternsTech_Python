@@ -1,21 +1,41 @@
 -- ============================================================
--- Migration 005 — Session booking (mentor slots + booking metadata)
--- Run after 004_catalog.sql
+-- Migration 005 — Session booking. MySQL-safe, re-runnable, collation-safe.
 -- ============================================================
-
 SET NAMES utf8mb4;
+SET @old_coll = @@collation_connection;
+SET collation_connection = 'utf8mb4_unicode_ci';
 
--- Mentor publishes weekly recurring availability as a JSON array.
--- e.g. [{"day":"MO","start":"18:00","end":"19:00"},...]
-ALTER TABLE mentors
-  ADD COLUMN IF NOT EXISTS slots_json LONGTEXT NULL;
+DROP PROCEDURE IF EXISTS et_add_col;
+DELIMITER //
+CREATE PROCEDURE et_add_col(
+  IN p_table VARCHAR(64) CHARACTER SET utf8mb4,
+  IN p_col   VARCHAR(64) CHARACTER SET utf8mb4,
+  IN p_def   TEXT        CHARACTER SET utf8mb4
+)
+BEGIN
+  DECLARE v_count INT DEFAULT 0;
+  SELECT COUNT(*) INTO v_count
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME   = p_table COLLATE utf8mb4_unicode_ci
+      AND COLUMN_NAME  = p_col   COLLATE utf8mb4_unicode_ci;
+  IF v_count = 0 THEN
+    SET @ddl = CONCAT('ALTER TABLE `', p_table, '` ADD COLUMN `', p_col, '` ', p_def);
+    PREPARE stmt FROM @ddl;
+    EXECUTE stmt;
+    DEALLOCATE PREPARE stmt;
+  END IF;
+END //
+DELIMITER ;
 
--- Extra columns on sessions for the booking model
+CALL et_add_col('mentors',  'slots_json',   'LONGTEXT NULL');
+CALL et_add_col('sessions', 'booked_by',    "ENUM('student','mentor','admin') NOT NULL DEFAULT 'admin'");
+CALL et_add_col('sessions', 'topic',        "VARCHAR(255) NOT NULL DEFAULT ''");
+CALL et_add_col('sessions', 'meeting_link', "VARCHAR(500) NOT NULL DEFAULT ''");
+
+DROP PROCEDURE IF EXISTS et_add_col;
+
 ALTER TABLE sessions
-  ADD COLUMN IF NOT EXISTS booked_by   ENUM('student','mentor','admin') NOT NULL DEFAULT 'admin',
-  ADD COLUMN IF NOT EXISTS topic       VARCHAR(255) NOT NULL DEFAULT '',
-  ADD COLUMN IF NOT EXISTS meeting_link VARCHAR(500) NOT NULL DEFAULT '';
+  MODIFY COLUMN status ENUM('planned','scheduled','completed','cancelled') NOT NULL DEFAULT 'scheduled';
 
--- Also change 'planned' → allow 'scheduled' status (v1 booking creates 'scheduled' rows)
-ALTER TABLE sessions
-  MODIFY COLUMN status ENUM('planned','scheduled','completed','cancelled') NOT NULL DEFAULT 'planned';
+SET collation_connection = @old_coll;
