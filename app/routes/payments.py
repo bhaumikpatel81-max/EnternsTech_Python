@@ -110,7 +110,7 @@ async def verify_payment(request: Request):
     if not pay:
         return JSONResponse({"ok": False, "error": "Payment record not found."})
     if pay["status"] == "paid":
-        return JSONResponse({"ok": True, "redirect": "/student"})
+        return JSONResponse({"ok": True, "redirect": "/mentee"})
 
     execute(
         "UPDATE payments SET gateway_payment_id=%s WHERE id=%s",
@@ -121,7 +121,7 @@ async def verify_payment(request: Request):
     if not result["ok"]:
         return JSONResponse({"ok": False, "error": result["error"]})
 
-    return JSONResponse({"ok": True, "redirect": "/student"})
+    return JSONResponse({"ok": True, "redirect": "/mentee"})
 
 
 def activate_student(email: str, plan_id: str, payment_id: int) -> dict:

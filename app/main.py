@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.routes import auth, student, mentor, admin, payments, partner, psychometric
+from app.routes import auth, mentee, mentor, admin, payments, partner, psychometric
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -50,7 +50,7 @@ templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # Register routers
 app.include_router(auth.router)
-app.include_router(student.router)
+app.include_router(mentee.router)
 app.include_router(mentor.router)
 app.include_router(admin.router)
 app.include_router(payments.router)
@@ -62,7 +62,10 @@ app.include_router(psychometric.router)
 async def home(request: Request):
     from app.services.catalog import get_catalog
     cat = get_catalog()
-    return templates.TemplateResponse(request, "home.html", {"plans": cat["plans"]})
+    return templates.TemplateResponse(request, "home.html", {
+        "plans": cat["plans"],
+        "combos": cat["combos"],
+    })
 
 
 @app.get("/api/content")

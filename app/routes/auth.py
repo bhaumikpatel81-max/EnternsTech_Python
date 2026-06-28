@@ -23,7 +23,7 @@ async def login_page(request: Request):
     if user:
         role = user.get("role", "")
         if role == "admin":   return RedirectResponse("/admin")
-        if role == "student": return RedirectResponse("/student")
+        if role == "student": return RedirectResponse("/mentee")
         if role == "mentor":  return RedirectResponse("/mentor")
     return templates.TemplateResponse(request, "login.html", {"error": None})
 
@@ -57,7 +57,7 @@ async def login(
         "role": role,
         "email": user_row["email"],
     })
-    dest = {"admin": "/admin", "student": "/student", "mentor": "/mentor"}.get(role, "/")
+    dest = {"admin": "/admin", "student": "/mentee", "mentor": "/mentor"}.get(role, "/")
     resp = RedirectResponse(dest, status_code=303)
     resp.set_cookie(
         COOKIE_NAME, token, httponly=True, samesite="lax",

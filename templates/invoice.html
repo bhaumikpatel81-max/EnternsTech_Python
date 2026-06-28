@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice #{{ invoice.payment_id }} — Enterns Tech</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #fff; color: #1a1a2e; font-size: 14px; }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 40px 32px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 2px solid #22d3ee; padding-bottom: 24px; }
+    .logo { font-size: 1.4rem; font-weight: 700; color: #06b6d4; }
+    .logo span { display: block; font-size: .8rem; font-weight: 400; color: #64748b; margin-top: 2px; }
+    .invoice-meta { text-align: right; }
+    .invoice-meta h2 { font-size: 1.5rem; font-weight: 700; color: #1a1a2e; }
+    .invoice-meta p { color: #64748b; font-size: .85rem; margin-top: 4px; }
+    .section { margin-bottom: 28px; }
+    .section h3 { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #94a3b8; margin-bottom: 10px; }
+    .bill-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .bill-to p, .bill-from p { color: #334155; line-height: 1.6; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: .8rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .04em; }
+    td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #334155; }
+    .text-right { text-align: right; }
+    .totals { margin-top: 20px; }
+    .totals table { width: 320px; margin-left: auto; }
+    .totals td { border: none; padding: 6px 12px; }
+    .totals .total-row td { font-weight: 700; font-size: 1.05rem; color: #06b6d4; border-top: 2px solid #e2e8f0; padding-top: 10px; }
+    .footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: .78rem; text-align: center; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: .75rem; font-weight: 600; }
+    .badge-success { background: #dcfce7; color: #166534; }
+    @media print {
+      body { background: #fff; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">
+      Enterns Tech
+      <span>Mentorship Platform</span>
+    </div>
+    <div class="invoice-meta">
+      <h2>INVOICE</h2>
+      <p>Payment ID: {{ invoice.payment_id }}</p>
+      <p>Date: {{ invoice.paid_at.strftime('%d %b %Y') if invoice.paid_at else '—' }}</p>
+      <p>
+        <span class="badge badge-success">{{ invoice.status | upper }}</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- Bill to / from -->
+  <div class="section">
+    <div class="bill-grid">
+      <div class="bill-to">
+        <h3>Bill To</h3>
+        <p><strong>{{ invoice.student_name }}</strong></p>
+        <p>{{ invoice.student_email }}</p>
+      </div>
+      <div class="bill-from">
+        <h3>From</h3>
+        <p><strong>Enterns Tech</strong></p>
+        <p>enternstech.com</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plan summary -->
+  <div class="section">
+    <h3>Plan</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="text-right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{ invoice.plan_name }} — Mentorship Plan</td>
+          <td class="text-right">₹{{ "%.2f"|format(invoice.amount_rupees) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Fee breakdown -->
+  <div class="section">
+    <h3>Fee Breakdown</h3>
+    <table>
+      <thead>
+        <tr><th>Component</th><th class="text-right">Amount</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Mentee price (incl. 7.5% platform fee)</td>
+          <td class="text-right">₹{{ "%.2f"|format(invoice.fee.mentee_pays / 100) }}</td>
+        </tr>
+        <tr>
+          <td>Platform fee</td>
+          <td class="text-right">₹{{ "%.2f"|format(invoice.fee.platform_keeps / 100) }}</td>
+        </tr>
+        <tr>
+          <td>Mentor payout</td>
+          <td class="text-right">₹{{ "%.2f"|format(invoice.fee.mentor_gets / 100) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Sessions -->
+  {% if invoice.sessions %}
+  <div class="section">
+    <h3>Sessions ({{ invoice.sessions | length }})</h3>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Date</th><th>Duration</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for s in invoice.sessions %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ s.scheduled_at.strftime('%d %b %Y %H:%M') if s.scheduled_at else '—' }}</td>
+          <td>{{ s.duration_min or 60 }} min</td>
+          <td>{{ s.status | replace('_',' ') | title }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- Total -->
+  <div class="totals">
+    <table>
+      <tbody>
+        <tr>
+          <td>Subtotal</td>
+          <td class="text-right">₹{{ "%.2f"|format(invoice.amount_rupees) }}</td>
+        </tr>
+        <tr>
+          <td>GST / Tax</td>
+          <td class="text-right">Included</td>
+        </tr>
+        <tr class="total-row">
+          <td>Total Paid</td>
+          <td class="text-right">₹{{ "%.2f"|format(invoice.amount_rupees) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <p>Thank you for choosing Enterns Tech. This is a computer-generated invoice.</p>
+    <p style="margin-top:6px">Questions? Contact us at admin@enternstech.com</p>
+  </div>
+
+  <div class="no-print" style="text-align:center;margin-top:32px">
+    <button onclick="window.print()" style="padding:10px 28px;background:#06b6d4;color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer">Print / Save PDF</button>
+  </div>
+</div>
+</body>
+</html>

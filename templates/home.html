@@ -3,161 +3,358 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Enterns Tech — Career Mentoring for Tech Professionals</title>
-  <link rel="stylesheet" href="/static/css/portal.css">
-  <style>
-    body{background:var(--enp-bg)}
-    .nav{display:flex;align-items:center;justify-content:space-between;padding:1rem 2.5rem;
-         background:rgba(14,20,34,.9);border-bottom:1px solid var(--enp-border);
-         position:sticky;top:0;z-index:100;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
-    .nav-logo{color:var(--enp-cyan);font-weight:700;font-size:1.2rem;text-decoration:none}
-    .nav-links{display:flex;gap:1rem;align-items:center}
-    .nav-links a{color:var(--enp-muted);text-decoration:none;font-size:.9rem;transition:color .15s}
-    .nav-links a:hover{color:var(--enp-text)}
-    .hero{text-align:center;padding:5rem 1.5rem 4rem;max-width:800px;margin:0 auto}
-    .hero h1{font-size:3rem;font-weight:800;margin:0 0 1.25rem;line-height:1.15;color:var(--enp-text)}
-    .hero h1 span{color:var(--enp-cyan)}
-    .hero p{color:var(--enp-muted);font-size:1.15rem;line-height:1.7;max-width:580px;margin:0 auto 2rem}
-    .hero-actions{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
-    .plans{padding:4rem 1.5rem;max-width:1100px;margin:0 auto}
-    .plans h2{text-align:center;font-size:2rem;margin-bottom:3rem;color:var(--enp-text)}
-    .plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem}
-    .plan-card{background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;
-               padding:2rem 1.5rem;transition:border-color .2s,transform .2s;cursor:pointer}
-    .plan-card:hover{border-color:var(--enp-cyan);transform:translateY(-4px)}
-    .plan-card .plan-name{font-weight:700;color:var(--enp-text);font-size:1.05rem;margin-bottom:.5rem}
-    .plan-card .plan-price{font-size:1.8rem;font-weight:700;color:var(--enp-cyan);margin-bottom:.75rem}
-    .plan-card .plan-feature{color:var(--enp-muted);font-size:.88rem;padding:.3rem 0;
-                              border-bottom:1px solid var(--enp-border);display:flex;gap:.5rem}
-    .plan-card .plan-btn{width:100%;margin-top:1.25rem;padding:.7rem;background:var(--enp-cyan);
-                         color:#05080f;font-weight:700;border:none;border-radius:8px;cursor:pointer;
-                         font-family:inherit;font-size:.95rem}
-    .plan-card .plan-btn:hover{opacity:.88}
-    .section-cta{text-align:center;padding:4rem 1.5rem;background:var(--enp-surface);
-                 border-top:1px solid var(--enp-border);border-bottom:1px solid var(--enp-border)}
-    .footer{text-align:center;padding:2rem 1.5rem;color:var(--enp-muted);font-size:.85rem;
-            border-top:1px solid var(--enp-border)}
-    /* Payment modal */
-    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;
-           align-items:center;justify-content:center}
-    .modal-card{background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;
-                padding:2rem;max-width:440px;width:90%}
-    .modal-card h3{margin:0 0 1.25rem;color:var(--enp-text)}
-    .modal-input{width:100%;padding:.7rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);
-                 border-radius:8px;color:var(--enp-text);font-size:.95rem;font-family:inherit;outline:none}
-    .modal-input:focus{border-color:var(--enp-cyan)}
-    .modal-error{color:var(--enp-red);font-size:.85rem;display:none;margin-top:.5rem}
-    .plan-badge{display:inline-block;background:rgba(34,211,238,.15);color:var(--enp-cyan);
-                border-radius:4px;padding:.15rem .55rem;font-size:.75rem;margin-bottom:.5rem}
-    .plan-price-intl{color:var(--enp-muted);font-size:.82rem;margin-bottom:.5rem}
-  </style>
+  <title>Enterns Tech — Land Your First Tech Job, Faster</title>
+  <meta name="description" content="Personalised 1-on-1 mentorship, CV redesign, and structured sessions that get early-career tech candidates hired.">
+  <link rel="stylesheet" href="/static/css/landing.css">
 </head>
 <body>
-  <nav class="nav">
-    <a href="/" class="nav-logo">Enterns Tech</a>
-    <div class="nav-links">
-      <a href="#plans">Plans</a>
-      <a href="/partner">Become a Mentor</a>
-      <a href="/login">Sign In</a>
-    </div>
-  </nav>
 
-  <div class="hero">
-    <h1>Launch Your <span>Tech Career</span> with Expert Mentoring</h1>
-    <p>Get personalised guidance from industry professionals. CV redesign, mock interviews, and 1-on-1 mentoring sessions tailored to your goals.</p>
-    <div class="hero-actions">
-      <a href="#plans" class="enp-btn enp-btn--primary" style="font-size:1rem;padding:.75rem 2rem">View Plans</a>
-      <a href="/partner" class="enp-btn enp-btn--ghost" style="font-size:1rem;padding:.75rem 2rem">Become a Mentor</a>
+<!-- ── Nav ──────────────────────────────────────────────────────────────────── -->
+<nav class="lp-nav" id="lp-nav">
+  <div class="container">
+    <div class="lp-nav__inner">
+      <a href="/" class="lp-logo">Enterns Tech</a>
+      <div class="lp-nav__links">
+        <a href="#how-it-works">How it works</a>
+        <a href="#features">Features</a>
+        <a href="#plans">Plans</a>
+        <a href="#faq">FAQ</a>
+        <a href="/login">Sign In</a>
+        <a href="#plans" class="lp-nav__cta">Get Started</a>
+      </div>
     </div>
   </div>
+</nav>
 
-  <section class="plans" id="plans">
-    <h2>Choose Your Plan</h2>
-    <div class="plan-grid">
-      {% for plan_id, plan in plans.items() %}
-      <div class="plan-card {% if plan.featured %}featured{% endif %}" id="plan-{{ plan_id }}">
-        {% if plan.badge %}<div class="plan-badge">{{ plan.badge }}</div>{% endif %}
-        <div class="plan-name">{{ plan.name }}</div>
-        <div class="plan-price">{{ plan.price_dom }}</div>
-        {% if plan.price_intl %}<div class="plan-price-intl">{{ plan.price_intl }} USD</div>{% endif %}
-        {% for feature in (plan.features or []) %}
-        <div class="plan-feature"><span>✓</span>{{ feature }}</div>
-        {% endfor %}
-        <button class="plan-btn" onclick="openPaymentModal('{{ plan_id }}','{{ plan.name }}','{{ plan.price_dom }}')">
-          Enrol Now
-        </button>
+<!-- ── Hero ──────────────────────────────────────────────────────────────────── -->
+<section class="hero" id="hero">
+  <div class="hero__glow"></div>
+  <div class="container">
+    <div class="hero__eyebrow reveal">
+      <span class="section-label">1-on-1 Mentorship Platform</span>
+    </div>
+    <h1 class="reveal reveal-delay-1">
+      Land your first<br><span class="grad-text">tech job, faster.</span>
+    </h1>
+    <p class="hero__sub reveal reveal-delay-2">
+      Structured mentorship sessions, expert CV redesign, and a clear path
+      from learning to employed — guided by engineers who've been there.
+    </p>
+    <div class="hero__ctas reveal reveal-delay-3">
+      <a href="#plans" class="btn-primary">View Plans</a>
+      <a href="#how-it-works" class="btn-ghost">How it works</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Stats bar ─────────────────────────────────────────────────────────────── -->
+<div class="stats-bar">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="reveal">
+        <div class="stat__val" data-target="500">0</div>
+        <div class="stat__label">Mentees placed</div>
+      </div>
+      <div class="reveal reveal-delay-1">
+        <div class="stat__val" data-target="98">0</div>
+        <div class="stat__label">% satisfaction rate</div>
+      </div>
+      <div class="reveal reveal-delay-2">
+        <div class="stat__val" data-target="40">0</div>
+        <div class="stat__label">Active mentors</div>
+      </div>
+      <div class="reveal reveal-delay-3">
+        <div class="stat__val" data-target="3" data-suffix="">0</div>
+        <div class="stat__label">Avg. months to offer</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── How it works ───────────────────────────────────────────────────────────── -->
+<section class="section" id="how-it-works">
+  <div class="container text-center">
+    <span class="section-label reveal">The process</span>
+    <h2 class="section-title reveal">How Enterns Tech works</h2>
+    <p class="section-sub reveal">Three straightforward steps from sign-up to your first offer.</p>
+    <div class="steps-grid">
+      <div class="step-card reveal">
+        <div class="step-card__num">01</div>
+        <h3>Pick your plan</h3>
+        <p>Choose the number of mentorship sessions that fits your stage — starter, growth, or accelerator. Pay once, no recurring fees.</p>
+      </div>
+      <div class="step-card reveal reveal-delay-1">
+        <div class="step-card__num">02</div>
+        <h3>Match with a mentor</h3>
+        <p>We pair you with a vetted engineer whose specialisation aligns with your tech stack and career goals. No cold intros.</p>
+      </div>
+      <div class="step-card reveal reveal-delay-2">
+        <div class="step-card__num">03</div>
+        <h3>Show up &amp; grow</h3>
+        <p>Book sessions, work through real problems, get your CV redesigned, and receive structured feedback until you land that role.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── Features ───────────────────────────────────────────────────────────────── -->
+<section class="section" id="features">
+  <div class="container text-center">
+    <span class="section-label reveal">What you get</span>
+    <h2 class="section-title reveal">Everything you need to get hired</h2>
+    <p class="section-sub reveal">Comprehensive support covering the full job-search journey, not just one piece of it.</p>
+    <div class="features-grid">
+      <div class="feat-card reveal">
+        <div class="feat-icon">🎯</div>
+        <h3>Skill-matched mentors</h3>
+        <p>Our matching algorithm pairs you with mentors whose expertise overlaps your target role and tech stack.</p>
+      </div>
+      <div class="feat-card reveal reveal-delay-1">
+        <div class="feat-icon">📋</div>
+        <h3>CV redesign</h3>
+        <p>Every plan includes a full CV overhaul by your mentor — ATS-optimised and tailored to your target companies.</p>
+      </div>
+      <div class="feat-card reveal reveal-delay-2">
+        <div class="feat-icon">📅</div>
+        <h3>Flexible scheduling</h3>
+        <p>Book sessions in your local timezone. Cancel or reschedule with 24 hours notice — no penalties.</p>
+      </div>
+      <div class="feat-card reveal reveal-delay-3">
+        <div class="feat-icon">🔐</div>
+        <h3>Privacy-first</h3>
+        <p>All communication stays in-platform. Mentors and mentees never share contact details directly.</p>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-icon">💬</div>
+        <h3>Structured sessions</h3>
+        <p>Every session has a topic and a Jitsi meeting link ready. No setup friction — just connect and learn.</p>
+      </div>
+      <div class="feat-card reveal reveal-delay-1">
+        <div class="feat-icon">🧠</div>
+        <h3>Psychometric assessment</h3>
+        <p>Optional deep-dive into your strengths, learning style, and big-five traits to shape your mentorship path.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── Plans ───────────────────────────────────────────────────────────────────── -->
+<section class="section" id="plans">
+  <div class="container text-center">
+    <span class="section-label reveal">Pricing</span>
+    <h2 class="section-title reveal">Simple, one-time plans</h2>
+    <p class="section-sub reveal">No subscriptions. No hidden fees. Pay once, use your sessions whenever you're ready.</p>
+    <div class="plans-grid">
+      {% for pid, plan in plans.items() %}
+      <div class="plan-card {% if loop.index == 2 %}plan-card--featured{% endif %} reveal">
+        {% if loop.index == 2 %}<div class="plan-card__badge">Most popular</div>{% endif %}
+        <div class="plan-card__name">{{ plan.name }}</div>
+        <div class="plan-card__price">{{ plan.price_dom }}</div>
+        <div class="plan-card__period">one-time payment</div>
+        <ul class="plan-card__features">
+          <li>{{ plan.sessions }} mentorship sessions</li>
+          <li>CV redesign included</li>
+          <li>Skill-matched mentor</li>
+          <li>Flexible scheduling</li>
+          {% if plan.sessions >= 8 %}<li>Priority mentor matching</li>{% endif %}
+          {% if plan.sessions >= 12 %}<li>Mock interviews</li>{% endif %}
+        </ul>
+        <a href="/login" class="btn-primary">Get started</a>
       </div>
       {% endfor %}
     </div>
-  </section>
 
-  <section class="section-cta">
-    <h2 style="color:var(--enp-text);margin:0 0 1rem">Ready to start your career journey?</h2>
-    <p style="color:var(--enp-muted);margin:0 0 2rem">Join hundreds of students who have landed their dream tech roles.</p>
-    <a href="#plans" class="enp-btn enp-btn--primary" style="font-size:1rem;padding:.75rem 2rem">Get Started Today</a>
-  </section>
-
-  <footer class="footer">
-    <p>© 2025 Enterns Tech. All rights reserved. &bull;
-      <a href="/partner" style="color:var(--enp-cyan)">Become a Mentor</a> &bull;
-      <a href="/login" style="color:var(--enp-cyan)">Login</a>
-    </p>
-  </footer>
-
-  <!-- Payment Modal -->
-  <div id="payment-modal" class="modal">
-    <div class="modal-card">
-      <h3 id="modal-plan-title">Enrol</h3>
-      <p style="color:var(--enp-muted);font-size:.9rem;margin-bottom:1.25rem">Enter your email to proceed to payment.</p>
-      <input type="hidden" id="modal-plan-id">
-      <div style="margin-bottom:1rem">
-        <input type="email" id="modal-email" class="modal-input" placeholder="your@email.com">
-        <div class="modal-error" id="modal-error"></div>
+    {% if combos %}
+    <h3 style="font-size:1.2rem;margin:3rem 0 1.5rem;color:var(--muted)" class="reveal">Bundle options</h3>
+    <div class="plans-grid">
+      {% for cid, combo in combos.items() %}
+      <div class="plan-card reveal">
+        <div class="plan-card__name">{{ combo.name }}</div>
+        <div class="plan-card__price">{{ combo.price_dom }}</div>
+        <div class="plan-card__period">bundle — one-time</div>
+        <ul class="plan-card__features">
+          <li>{{ combo.sessions }} sessions</li>
+          <li>CV redesign</li>
+          <li>Mentor matching</li>
+        </ul>
+        <a href="/login" class="btn-ghost">Choose bundle</a>
       </div>
-      <div style="display:flex;gap:.75rem">
-        <button class="enp-btn enp-btn--primary" style="flex:1" onclick="proceedToPayment()">Pay Now</button>
-        <button class="enp-btn enp-btn--ghost" onclick="document.getElementById('payment-modal').style.display='none'">Cancel</button>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── Testimonials ────────────────────────────────────────────────────────────── -->
+<section class="section" id="testimonials">
+  <div class="container text-center">
+    <span class="section-label reveal">Success stories</span>
+    <h2 class="section-title reveal">Mentees who made it</h2>
+    <p class="section-sub reveal">Real results from people who were exactly where you are now.</p>
+    <div class="testi-grid">
+      <div class="testi-card reveal">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-card__quote">"After 6 months of applying blind, Enterns Tech matched me with a Python mentor who rewrote my CV and helped me nail system design. Got an offer in 8 weeks."</p>
+        <div class="testi-card__author">
+          <div class="testi-card__avatar">R</div>
+          <div>
+            <div class="testi-card__name">Rohan M.</div>
+            <div class="testi-card__role">Junior Backend Dev — Pune</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card reveal reveal-delay-1">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-card__quote">"I was a career-switcher with zero industry contacts. My mentor spent sessions on real interview problems and gave me an ATS-ready CV. Hired as a data analyst."</p>
+        <div class="testi-card__author">
+          <div class="testi-card__avatar">P</div>
+          <div>
+            <div class="testi-card__name">Priya S.</div>
+            <div class="testi-card__role">Data Analyst — Bengaluru</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card reveal reveal-delay-2">
+        <div class="testi-stars">★★★★★</div>
+        <p class="testi-card__quote">"The flexible scheduling was a lifesaver. I was working a day job while upskilling. My mentor adapted every session to my pace and kept me accountable."</p>
+        <div class="testi-card__author">
+          <div class="testi-card__avatar">A</div>
+          <div>
+            <div class="testi-card__name">Aditya K.</div>
+            <div class="testi-card__role">Frontend Dev — Mumbai</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
+</section>
 
-  <script>
-    function openPaymentModal(planId, planName, planPrice){
-      document.getElementById('modal-plan-id').value=planId;
-      document.getElementById('modal-plan-title').textContent='Enrol — '+planName+' ('+planPrice+')';
-      document.getElementById('modal-error').style.display='none';
-      document.getElementById('payment-modal').style.display='flex';
-    }
-    async function proceedToPayment(){
-      const planId=document.getElementById('modal-plan-id').value;
-      const email=document.getElementById('modal-email').value.trim();
-      const errEl=document.getElementById('modal-error');
-      if(!email||!email.includes('@')){errEl.textContent='Please enter a valid email.';errEl.style.display='block';return;}
-      errEl.style.display='none';
-      const r=await fetch('/api/payments/create-order',{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({plan_id:planId,email})
-      });
-      const d=await r.json();
-      if(!d.ok){errEl.textContent=d.error||'Error creating order.';errEl.style.display='block';return;}
-      const rzp=new Razorpay({
-        key:d.key_id,amount:d.amount,currency:d.currency,order_id:d.order_id,
-        name:'Enterns Tech',description:'Career Mentoring Enrolment',
-        handler:async function(resp){
-          const vr=await fetch('/api/payments/verify',{
-            method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({...resp,payment_id:d.payment_id,email})
-          });
-          const vd=await vr.json();
-          if(vd.ok)window.location.href=vd.redirect;
-          else{errEl.textContent=vd.error||'Payment verification failed.';errEl.style.display='block';}
-        },
-        prefill:{email},theme:{color:'#22D3EE'},
-        modal:{ondismiss:()=>{}}
-      });
-      rzp.open();
-    }
-  </script>
-  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<div class="divider"></div>
+
+<!-- ── FAQ ────────────────────────────────────────────────────────────────────── -->
+<section class="section" id="faq">
+  <div class="container text-center">
+    <span class="section-label reveal">FAQ</span>
+    <h2 class="section-title reveal">Common questions</h2>
+    <p class="section-sub reveal">Everything you need to know before you start.</p>
+    <div class="faq-list" style="text-align:left">
+      <details class="faq-item reveal">
+        <summary>How are mentors selected?</summary>
+        <p class="faq-item__body">Every mentor goes through a written application and interview process. We verify their technical background, communication skills, and availability. Approved mentors are matched to mentees based on tech stack overlap.</p>
+      </details>
+      <details class="faq-item reveal">
+        <summary>Can I change my mentor?</summary>
+        <p class="faq-item__body">Yes. If the pairing isn't working, submit a change request from your dashboard with a brief reason. Admin reviews and reassigns you — no penalty.</p>
+      </details>
+      <details class="faq-item reveal">
+        <summary>What happens if I miss a session?</summary>
+        <p class="faq-item__body">Sessions can be cancelled or rescheduled up to 24 hours in advance at no cost. Late cancellations are tracked. If your mentor is a no-show, you get a refund for that session automatically.</p>
+      </details>
+      <details class="faq-item reveal">
+        <summary>How does the CV redesign work?</summary>
+        <p class="faq-item__body">Your assigned mentor reviews your current CV, rewrites it for ATS compatibility, and tailors it to the roles you're targeting. Progress is tracked in your dashboard.</p>
+      </details>
+      <details class="faq-item reveal">
+        <summary>Are payments secure?</summary>
+        <p class="faq-item__body">Yes. Payments are processed by Razorpay. Your payment goes into escrow and is released to the mentor session-by-session as work is completed — protecting you throughout.</p>
+      </details>
+      <details class="faq-item reveal">
+        <summary>Is there a refund policy?</summary>
+        <p class="faq-item__body">If a mentor cancels within SLA or is a no-show, the escrow for that session refunds automatically. Contact admin for other scenarios — we review within 48 hours.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── CTA ────────────────────────────────────────────────────────────────────── -->
+<section class="section">
+  <div class="container">
+    <div class="cta-banner reveal">
+      <h2>Ready to fast-track your career?</h2>
+      <p>Join hundreds of mentees who've landed tech roles with Enterns Tech. No subscriptions — just pay for the sessions you need.</p>
+      <a href="#plans" class="btn-primary">See Plans</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ─────────────────────────────────────────────────────────────────── -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <a href="/" class="lp-logo">Enterns Tech</a>
+        <p>Helping early-career tech professionals land their first role through structured 1-on-1 mentorship.</p>
+      </div>
+      <div class="footer__col">
+        <h4>Platform</h4>
+        <a href="#how-it-works">How it works</a>
+        <a href="#features">Features</a>
+        <a href="#plans">Pricing</a>
+        <a href="#faq">FAQ</a>
+      </div>
+      <div class="footer__col">
+        <h4>Account</h4>
+        <a href="/login">Sign in</a>
+        <a href="/mentee">Mentee portal</a>
+        <a href="/mentor">Mentor portal</a>
+        <a href="/partner/apply">Become a mentor</a>
+      </div>
+      <div class="footer__col">
+        <h4>Contact</h4>
+        <a href="mailto:admin@enternstech.com">admin@enternstech.com</a>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <span class="footer__copy">© 2025 Enterns Tech. All rights reserved.</span>
+      <span class="footer__copy">Payments secured by Razorpay</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* Reveal on scroll */
+const revealEls = document.querySelectorAll('.reveal');
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); }
+  });
+}, { threshold: 0.12 });
+revealEls.forEach(el => io.observe(el));
+
+/* Nav shrink */
+const nav = document.getElementById('lp-nav');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 50);
+}, { passive: true });
+
+/* Animated counters */
+function animateCount(el, target, suffix) {
+  let val = 0;
+  const step = target / 60;
+  const timer = setInterval(() => {
+    val = Math.min(val + step, target);
+    el.textContent = Math.round(val) + suffix;
+    if (val >= target) clearInterval(timer);
+  }, 16);
+}
+
+const cio = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (!e.isIntersecting) return;
+    const el = e.target;
+    animateCount(el, +el.dataset.target, el.dataset.suffix !== undefined ? el.dataset.suffix : '+');
+    cio.unobserve(el);
+  });
+}, { threshold: 0.5 });
+document.querySelectorAll('.stat__val[data-target]').forEach(el => cio.observe(el));
+</script>
 </body>
 </html>

@@ -63,6 +63,17 @@ class Settings(BaseSettings):
 
     PSY_LINK_EXPIRY_DAYS: int = 7
 
+    # Platform fee split (Phase 03)
+    PLATFORM_FEE_MENTEE_PCT: float = 7.5
+    PLATFORM_FEE_MENTOR_PCT: float = 7.5
+
+    # Cancellation SLA (Phase 05)
+    CANCEL_SLA_HOURS: int = 24
+    NOSHOW_GRACE_MIN: int = 15
+
+    # Review release window in days (Phase 06)
+    REVIEW_RELEASE_DAYS: int = 7
+
     class Config:
         env_file = _ENV_PATH
         extra = "ignore"

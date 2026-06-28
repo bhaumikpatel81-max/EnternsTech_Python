@@ -9,24 +9,43 @@
 
 <div class="enp-card">
   <div class="enp-card__body" style="padding:0;overflow-x:auto">
-    <table class="enp-table" style="min-width:700px">
-      <thead><tr><th>Date</th><th>Student</th><th>Mentor</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead>
+    <table class="enp-table" style="min-width:900px">
+      <thead>
+        <tr>
+          <th>Date (UTC)</th><th>Mentee</th><th>Mentor</th><th>Duration</th>
+          <th>Status</th><th>Meeting Link</th><th>Actions</th>
+        </tr>
+      </thead>
       <tbody>
         {% for s in sessions %}
-        <tr>
+        <tr id="srow-{{ s.id }}">
           <td style="font-size:.85rem">{{ s.scheduled_at.strftime('%d %b %Y %H:%M') if s.scheduled_at else '—' }}</td>
           <td>{{ s.student_name or '—' }}</td>
           <td>{{ s.mentor_name or '—' }}</td>
           <td>{{ s.duration_min }} min</td>
-          <td><span class="enp-badge {% if s.status=='completed' %}enp-badge--success{% elif s.status=='cancelled' %}enp-badge--error{% else %}enp-badge--info{% endif %}">{{ s.status | title }}</span></td>
           <td>
-            {% if s.status == 'planned' %}
-            <button class="enp-btn enp-btn--primary enp-btn--sm" onclick="markComplete({{ s.id }})">Mark Complete</button>
-            {% endif %}
+            <span class="enp-badge {% if s.status=='completed' %}enp-badge--success{% elif s.status in ('cancelled','no_show') %}enp-badge--error{% elif s.status=='rescheduled' %}enp-badge--warn{% else %}enp-badge--info{% endif %}">
+              {{ s.status | replace('_',' ') | title }}
+            </span>
+          </td>
+          <td style="font-size:.8rem">
+            {% if s.meeting_link %}
+              <a href="{{ s.meeting_link }}" target="_blank" style="color:var(--enp-cyan)">Join ↗</a>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+              {% if s.status in ('scheduled','confirmed','active','planned') %}
+                <button class="enp-btn enp-btn--primary enp-btn--sm" onclick="markComplete({{ s.id }})">Complete</button>
+                <button class="enp-btn enp-btn--ghost enp-btn--sm" onclick="openCancel({{ s.id }})">Cancel</button>
+                <button class="enp-btn enp-btn--ghost enp-btn--sm" onclick="openReschedule({{ s.id }})">Reschedule</button>
+                <button class="enp-btn enp-btn--ghost enp-btn--sm" onclick="doNoShow({{ s.id }})">No-show</button>
+              {% endif %}
+            </div>
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="6" style="text-align:center;color:var(--enp-muted);padding:2rem">No sessions.</td></tr>
+        <tr><td colspan="7" style="text-align:center;color:var(--enp-muted);padding:2rem">No sessions.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -39,8 +58,8 @@
     <h3 style="margin:0 0 1.25rem;color:var(--enp-text)">Add Session</h3>
     <form method="POST" action="/admin/sessions/add">
       <div style="margin-bottom:.75rem">
-        <label style="display:block;color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">Student</label>
-        <select name="student_id" aria-label="Student" style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit">
+        <label style="display:block;color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">Mentee</label>
+        <select name="student_id" aria-label="Mentee" style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit">
           {% for s in students %}<option value="{{ s.id }}">{{ s.full_name or s.email }}</option>{% endfor %}
         </select>
       </div>
@@ -52,12 +71,12 @@
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
         <div>
-          <label style="display:block;color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">Date & Time</label>
+          <label style="display:block;color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">Date &amp; Time (UTC)</label>
           <input type="datetime-local" name="scheduled_at" required aria-label="Session date and time" style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit">
         </div>
         <div>
           <label style="display:block;color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">Duration (min)</label>
-          <input type="number" name="duration_min" value="60" min="15" step="15" aria-label="Session duration in minutes" style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit">
+          <input type="number" name="duration_min" value="60" min="15" step="15" aria-label="Duration in minutes" style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit">
         </div>
       </div>
       <div style="display:flex;gap:.75rem;margin-top:1rem">
@@ -67,16 +86,92 @@
     </form>
   </div>
 </div>
+
+<!-- Cancel Modal -->
+<div id="cancel-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center">
+  <div style="background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;padding:2rem;max-width:420px;width:90%">
+    <h3 style="margin:0 0 1rem;color:var(--enp-text)">Cancel Session</h3>
+    <input type="hidden" id="cancel-session-id">
+    <textarea id="cancel-reason" rows="3" placeholder="Reason (optional)" style="width:100%;padding:.65rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+    <div style="display:flex;gap:.75rem;margin-top:1rem">
+      <button class="enp-btn enp-btn--primary" style="flex:1" onclick="doCancel()">Confirm Cancel</button>
+      <button class="enp-btn enp-btn--ghost" onclick="document.getElementById('cancel-modal').style.display='none'">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reschedule Modal -->
+<div id="reschedule-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center">
+  <div style="background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;padding:2rem;max-width:420px;width:90%">
+    <h3 style="margin:0 0 1rem;color:var(--enp-text)">Reschedule Session</h3>
+    <input type="hidden" id="reschedule-session-id">
+    <label style="display:block;color:var(--enp-muted);font-size:.8rem;margin-bottom:.3rem">New Date &amp; Time (UTC)</label>
+    <input type="datetime-local" id="reschedule-slot" style="width:100%;padding:.65rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit;box-sizing:border-box">
+    <div style="display:flex;gap:.75rem;margin-top:1rem">
+      <button class="enp-btn enp-btn--primary" style="flex:1" onclick="doReschedule()">Reschedule</button>
+      <button class="enp-btn enp-btn--ghost" onclick="document.getElementById('reschedule-modal').style.display='none'">Close</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-async function markComplete(id){
-  const paid=confirm('Mark mentor as paid for this session?')?1:0;
-  const fd=new FormData();fd.append('session_id',id);fd.append('mentor_paid',paid);
-  const r=await fetch('/admin/sessions/mark-complete',{method:'POST',body:fd});
-  const d=await r.json();
-  if(d.ok)location.reload();
+async function markComplete(id) {
+  const fd = new FormData();
+  fd.append('session_id', id);
+  fd.append('mentor_paid', '0');
+  const r = await fetch('/admin/sessions/mark-complete', { method: 'POST', body: fd });
+  const d = await r.json();
+  if (d.ok) location.reload();
+  else alert(d.error || 'Failed');
+}
+
+function openCancel(id) {
+  document.getElementById('cancel-session-id').value = id;
+  document.getElementById('cancel-reason').value = '';
+  document.getElementById('cancel-modal').style.display = 'flex';
+}
+
+async function doCancel() {
+  const id = document.getElementById('cancel-session-id').value;
+  const reason = document.getElementById('cancel-reason').value;
+  const r = await fetch('/admin/sessions/cancel', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: +id, reason })
+  });
+  const d = await r.json();
+  if (d.ok) location.reload();
+  else alert(d.error || 'Failed');
+}
+
+function openReschedule(id) {
+  document.getElementById('reschedule-session-id').value = id;
+  document.getElementById('reschedule-modal').style.display = 'flex';
+}
+
+async function doReschedule() {
+  const id = document.getElementById('reschedule-session-id').value;
+  const slot = document.getElementById('reschedule-slot').value;
+  if (!slot) { alert('Choose a date/time.'); return; }
+  const r = await fetch('/admin/sessions/reschedule', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: +id, new_slot: slot })
+  });
+  const d = await r.json();
+  if (d.ok) location.reload();
+  else alert(d.error || 'Failed');
+}
+
+async function doNoShow(id) {
+  if (!confirm('Mark this session as no-show?')) return;
+  const r = await fetch('/admin/sessions/no-show', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: id })
+  });
+  const d = await r.json();
+  if (d.ok) location.reload();
+  else alert(d.error || 'Failed');
 }
 </script>
 {% endblock %}

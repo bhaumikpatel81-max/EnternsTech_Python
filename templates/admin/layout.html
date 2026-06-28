@@ -41,8 +41,8 @@
     <nav class="sidebar-nav">
       <a href="/admin" class="{% if section=='overview' %}active{% endif %}">
         <span class="icon">📊</span>Overview</a>
-      <a href="/admin/students" class="{% if section=='students' %}active{% endif %}">
-        <span class="icon">🎓</span>Students</a>
+      <a href="/admin/mentees" class="{% if section=='students' %}active{% endif %}">
+        <span class="icon">🎓</span>Mentees</a>
       <a href="/admin/mentors" class="{% if section=='mentors' %}active{% endif %}">
         <span class="icon">👤</span>Mentors</a>
       <a href="/admin/mentors?tab=pending" class="{% if section=='mentors' and tab=='pending' %}active{% endif %}">
@@ -59,6 +59,8 @@
         <span class="icon">🏷️</span>Catalog</a>
       <a href="/admin/manual-revenue" class="{% if section=='manual_revenue' %}active{% endif %}">
         <span class="icon">💰</span>Manual Revenue</a>
+      <a href="/admin/reviews" class="{% if section=='reviews' %}active{% endif %}">
+        <span class="icon">⭐</span>Reviews</a>
     </nav>
     <div class="sidebar-footer">
       <a href="/logout" style="color:var(--enp-muted);font-size:.85rem;text-decoration:none">← Sign Out</a>

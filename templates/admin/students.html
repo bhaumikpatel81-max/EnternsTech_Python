@@ -1,6 +1,6 @@
 {% extends "admin/layout.html" %}
-{% block title %}Students — Admin{% endblock %}
-{% block page_title %}Students{% endblock %}
+{% block title %}Mentees — Admin{% endblock %}
+{% block page_title %}Mentees{% endblock %}
 
 {% block body %}
 <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
@@ -17,7 +17,7 @@
     <table class="enp-table" style="min-width:700px">
       <thead>
         <tr>
-          <th>Student</th><th>Plan</th><th>Sessions</th><th>Mentor</th><th>Status</th><th>Actions</th>
+          <th>Mentee</th><th>Plan</th><th>Sessions</th><th>Mentor</th><th>Status</th><th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -59,7 +59,7 @@
 <div id="assign-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center">
   <div style="background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;padding:2rem;max-width:400px;width:90%">
     <h3 style="margin:0 0 1rem;color:var(--enp-text)">Assign Mentor</h3>
-    <form id="assign-form" method="POST" action="/admin/students/assign-mentor">
+    <form id="assign-form" method="POST" action="/admin/mentees/assign-mentor">
       <input type="hidden" name="student_id" id="assign-student-id">
       <select name="mentor_id" aria-label="Select mentor" style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit;margin-bottom:1rem">
         {% for m in mentors %}
@@ -78,7 +78,7 @@
 <div id="sessions-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center">
   <div style="background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;padding:2rem;max-width:360px;width:90%">
     <h3 style="margin:0 0 1rem;color:var(--enp-text)">Update Sessions</h3>
-    <form id="sessions-form" method="POST" action="/admin/students/update-sessions">
+    <form id="sessions-form" method="POST" action="/admin/mentees/update-sessions">
       <input type="hidden" name="student_id" id="sessions-student-id">
       <input type="number" name="sessions_total" id="sessions-total-input" min="1" max="20" aria-label="Total sessions"
              style="width:100%;padding:.65rem 1rem;background:#0a0f1e;border:1px solid var(--enp-border);border-radius:8px;color:var(--enp-text);font-family:inherit;margin-bottom:1rem">

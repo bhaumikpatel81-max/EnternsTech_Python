@@ -1,0 +1,77 @@
+{% extends "admin/layout.html" %}
+{% block title %}Reviews — Admin{% endblock %}
+{% block page_title %}Reviews{% endblock %}
+
+{% block body %}
+<div style="display:flex;justify-content:flex-end;margin-bottom:1.5rem">
+  <form method="POST" action="/admin/reviews/release-due" style="margin:0">
+    <button type="submit" class="enp-btn enp-btn--primary enp-btn--sm">Release Due Reviews</button>
+  </form>
+</div>
+
+<div class="enp-card">
+  <div class="enp-card__body" style="padding:0;overflow-x:auto">
+    <table class="enp-table" style="min-width:800px">
+      <thead>
+        <tr>
+          <th>Session</th><th>Mentee</th><th>Mentor</th>
+          <th>Author</th><th>Rating</th><th>Comment</th><th>State</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reviews %}
+        <tr>
+          <td style="font-size:.82rem">
+            #{{ r.session_id }}<br>
+            <span style="color:var(--enp-muted)">{{ r.session_at.strftime('%d %b %Y') if r.session_at else '' }}</span>
+          </td>
+          <td>{{ r.mentee_name or '—' }}</td>
+          <td>{{ r.mentor_name or '—' }}</td>
+          <td>
+            <span class="enp-badge {% if r.author_role=='mentor' %}enp-badge--info{% else %}enp-badge--mentor{% endif %}">
+              {{ r.author_role | title }}
+            </span>
+          </td>
+          <td>
+            <span style="color:var(--enp-gold);font-weight:600">
+              {{ '★' * r.rating }}{{ '☆' * (5 - r.rating) }}
+            </span>
+            <span style="color:var(--enp-muted);font-size:.8rem">({{ r.rating }}/5)</span>
+          </td>
+          <td style="max-width:280px;font-size:.85rem">{{ r.comment or '—' }}</td>
+          <td>
+            <span class="enp-badge {% if r.state=='released' %}enp-badge--success{% else %}enp-badge--warn{% endif %}">
+              {{ r.state | title }}
+            </span>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" style="text-align:center;color:var(--enp-muted);padding:2rem">No reviews yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if mentor_avgs %}
+<div class="enp-card" style="margin-top:1.5rem">
+  <div class="enp-card__header"><h2 class="enp-card__title">Per-mentor Averages</h2></div>
+  <div class="enp-card__body" style="padding:0;overflow-x:auto">
+    <table class="enp-table" style="min-width:400px">
+      <thead><tr><th>Mentor</th><th>Avg Rating</th><th>Reviews</th></tr></thead>
+      <tbody>
+        {% for m in mentor_avgs %}
+        <tr>
+          <td>{{ m.full_name }}</td>
+          <td style="color:var(--enp-gold);font-weight:600">{{ "%.1f"|format(m.avg_rating) }} / 5</td>
+          <td>{{ m.review_count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

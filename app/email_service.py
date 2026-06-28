@@ -77,7 +77,7 @@ def send_student_welcome(email: str, plan_name: str, set_password_url: str) -> b
   </a>
 </p>
 <p style="color:#94a3b8;font-size:13px">This link expires in 24 hours. Use <em>Forgot Password</em> for a fresh link.</p>
-<p>Student portal: <a href="{settings.APP_BASE_URL}/student">{settings.APP_BASE_URL}/student</a></p>
+<p>Student portal: <a href="{settings.APP_BASE_URL}/mentee">{settings.APP_BASE_URL}/mentee</a></p>
 """
     return send_mail(email, "Welcome to Enterns Tech — Set your password", body)
 
@@ -230,9 +230,26 @@ def send_mentor_change_approved(email: str, mentor_name: str) -> bool:
 <h2>Mentor Change Approved</h2>
 <p>Your mentor change request has been approved.</p>
 <p>Your new mentor is <strong>{mentor_name}</strong>.</p>
-<p><a href="{settings.APP_BASE_URL}/student">Go to your portal &rarr;</a></p>
+<p><a href="{settings.APP_BASE_URL}/mentee">Go to your portal &rarr;</a></p>
 """
     return send_mail(email, "Mentor Change Approved", body)
+
+
+def send_booking_confirmation(
+    student_email: str, when_local_str: str, meeting_url: str, mentor_first_name: str
+) -> bool:
+    body = f"""
+<h2>Session Confirmed!</h2>
+<p>Your session has been booked successfully.</p>
+<p><strong>When:</strong> {when_local_str}</p>
+<p><strong>Meeting link:</strong> <a href="{meeting_url}">{meeting_url}</a></p>
+<p style="color:#94a3b8;font-size:.9rem">
+  Your mentor is ready to help you. Join the call at the scheduled time using the link above.
+  Contact is via the Enterns Tech platform only — no direct contact details are shared.
+</p>
+<p><a href="{settings.APP_BASE_URL}/mentee">Go to your portal &rarr;</a></p>
+"""
+    return send_mail(student_email, "Session Confirmed — Enterns Tech", body)
 
 
 def send_mentor_change_denied(email: str, reason: str = "") -> bool:
