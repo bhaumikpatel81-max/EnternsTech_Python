@@ -104,7 +104,7 @@ async def activate_student_manual(
         return JSONResponse({"ok": False, "error": "Invalid plan"})
     pay_id = execute(
         "INSERT INTO payments (email, plan_id, amount, currency, gateway, status) VALUES (%s,%s,%s,'INR','manual','paid')",
-        (email, plan_id, round(plan["paise"] / 100, 2)),
+        (email, plan_id, plan["paise"]),
     )
     result = activate_student(email, plan_id, pay_id)
     return JSONResponse(result)

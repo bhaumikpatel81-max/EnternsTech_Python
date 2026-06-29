@@ -22,7 +22,7 @@
               {{ plan_catalog[p.plan_id].name }}
             {% else %}{{ p.plan_id }}{% endif %}
           </td>
-          <td style="color:var(--enp-green);font-weight:600">₹{{ "{:,.0f}".format(p.amount) }}</td>
+          <td style="color:var(--enp-green);font-weight:600">₹{{ "{:,.2f}".format(p.amount / 100) }}</td>
           <td>
             <span class="enp-badge enp-badge--info">{{ p.gateway | title }}</span>
           </td>

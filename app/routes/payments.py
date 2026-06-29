@@ -1,16 +1,20 @@
+from __future__ import annotations
+
+import base64
 import hashlib
 import hmac
 import secrets
 import time
-import httpx
-import base64
 from datetime import datetime, timedelta, timezone
+
+import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from app.config import settings
-from app.database import fetchone, execute
+
 from app import email_service
 from app.auth import hash_password
+from app.config import settings
+from app.database import execute, fetchone
 
 router = APIRouter(prefix="/api/payments")
 
@@ -61,11 +65,11 @@ async def create_order(request: Request):
 
     order = resp.json()
 
-    # Insert payment record
+    # Insert payment record — amount stored in paise (G12)
     payment_id = execute(
         """INSERT INTO payments (email, plan_id, amount, currency, gateway, gateway_order_id, status)
            VALUES (%s, %s, %s, 'INR', 'razorpay', %s, 'created')""",
-        (email, plan_id, round(paise / 100, 2), order["id"]),
+        (email, plan_id, paise, order["id"]),
     )
 
     return JSONResponse({

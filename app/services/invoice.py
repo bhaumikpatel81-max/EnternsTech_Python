@@ -15,7 +15,7 @@ def build_invoice(payment_id: int) -> dict | None:
         ) or {}
     plan = fetchone("SELECT * FROM plans WHERE id=%s", (payment.get("plan_id"),))
     plan_name = (plan.get("name") if plan else None) or payment.get("plan_id", "")
-    amount_paise = int(round(float(payment.get("amount") or 0) * 100))
+    amount_paise = int(payment.get("amount") or 0)
     fee = fee_breakdown(amount_paise)
     sessions = []
     if student.get("id"):
@@ -24,10 +24,11 @@ def build_invoice(payment_id: int) -> dict | None:
             (student["id"],),
         )
     return {
-        "payment": dict(payment),
-        "student": student,
-        "plan_name": plan_name,
+        "payment":      dict(payment),
+        "student":      student,
+        "plan_name":    plan_name,
         "amount_paise": amount_paise,
-        "fee": fee,
-        "sessions": sessions,
+        "amount_rupees": amount_paise / 100,
+        "fee":          fee,
+        "sessions":     sessions,
     }

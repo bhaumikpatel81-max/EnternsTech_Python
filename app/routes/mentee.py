@@ -506,7 +506,7 @@ async def request_upgrade(request: Request):
     payment_id = execute(
         """INSERT INTO payments (email, plan_id, amount, currency, gateway, gateway_order_id, status)
            VALUES (%s,%s,%s,'INR','razorpay',%s,'created')""",
-        (email, new_plan_id, round(diff_paise / 100, 2), order["id"]),
+        (email, new_plan_id, diff_paise, order["id"]),
     )
 
     return JSONResponse({
