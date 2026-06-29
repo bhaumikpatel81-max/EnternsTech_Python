@@ -49,6 +49,7 @@
     {% endif %}
 
     <form method="POST" action="/login">
+      <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
       <div class="form-group">
         <label>Email / Username</label>
         <input type="text" name="email" placeholder="you@example.com" required autofocus>

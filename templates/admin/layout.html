@@ -30,6 +30,7 @@
       .main{margin-left:0}
     }
   </style>
+  <meta name="csrf-token" content="{{ request.state.csrf_token | default('') }}">
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -77,5 +78,21 @@
     </div>
   </main>
   {% block scripts %}{% endblock %}
+  <script>
+    (function () {
+      var token = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+      if (!token) return;
+      document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (form.tagName !== 'FORM' || form.method.toUpperCase() !== 'POST') return;
+        if (form.querySelector('input[name="csrf_token"]')) return;
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'csrf_token';
+        input.value = token;
+        form.appendChild(input);
+      }, true);
+    })();
+  </script>
 </body>
 </html>

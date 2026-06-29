@@ -1,24 +1,35 @@
+from __future__ import annotations
+
 import logging
 import os
+
 import pymysql
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.routes import auth, mentee, mentor, admin, payments, partner, psychometric
+from app.middleware.csrf import CSRFMiddleware
+from app.routes import admin, auth, mentor, mentee, partner, payments, psychometric
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 app = FastAPI(title="Enterns Tech Portal", docs_url=None, redoc_url=None)
 
-from app.config import settings as _settings
+from app.config import settings as _settings  # noqa: E402  (after app creation)
+
 logging.getLogger("uvicorn.error").info(
-    "DB target -> host=%s db=%s user=%s", _settings.DB_HOST, _settings.DB_NAME, _settings.DB_USER
+    "DB target -> host=%s db=%s user=%s",
+    _settings.DB_HOST,
+    _settings.DB_NAME,
+    _settings.DB_USER,
 )
 
+# ── Middleware ────────────────────────────────────────────────────────────────
+# CSRF must be added BEFORE routers so it wraps every request.
+app.add_middleware(CSRFMiddleware)
 
-# ── Global error handlers ────────────────────────────────────────────────────
+# ── Global error handlers ─────────────────────────────────────────────────────
 
 @app.exception_handler(pymysql.err.OperationalError)
 async def db_operational_error(request: Request, exc: pymysql.err.OperationalError):
@@ -42,13 +53,14 @@ async def generic_error(request: Request, exc: Exception):
     msg = f"Unhandled error: {type(exc).__name__}: {exc}\n\n{tb}"
     return PlainTextResponse(msg, status_code=500)
 
-# Static files
+
+# ── Static files ──────────────────────────────────────────────────────────────
 if os.path.isdir(os.path.join(BASE_DIR, "public")):
     app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "public")), name="static")
 
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
-# Register routers
+# ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router)
 app.include_router(mentee.router)
 app.include_router(mentor.router)
@@ -58,12 +70,14 @@ app.include_router(partner.router)
 app.include_router(psychometric.router)
 
 
+# ── Top-level routes ──────────────────────────────────────────────────────────
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     from app.services.catalog import get_catalog
     cat = get_catalog()
     return templates.TemplateResponse(request, "home.html", {
-        "plans": cat["plans"],
+        "plans":  cat["plans"],
         "combos": cat["combos"],
     })
 

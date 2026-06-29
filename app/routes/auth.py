@@ -1,16 +1,25 @@
+from __future__ import annotations
+
 import hashlib
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Request, Form, Response
+
+from fastapi import APIRouter, Form, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+
 from app.auth import (
-    verify_password, create_token, get_current_user, hash_password,
-    COOKIE_NAME, decode_token,
+    COOKIE_NAME,
+    decode_token,
+    create_token,
+    get_current_user,
+    hash_password,
+    verify_password,
 )
 from app.config import settings
-from app.database import fetchone, execute
+from app.database import execute, fetchone
+from app.services import rate_limiter
 
 router = APIRouter()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -35,21 +44,39 @@ async def login(
     email: str = Form(...),
     password: str = Form(...),
 ):
-    user_row = fetchone(
-        "SELECT * FROM users WHERE email=%s LIMIT 1",
-        (email.lower().strip(),),
-    )
+    email = email.lower().strip()
+    ip = rate_limiter.get_client_ip(request)
+
+    # G1 — rate-limit check BEFORE any DB auth work
+    if rate_limiter.is_limited(email, ip, "login"):
+        return templates.TemplateResponse(
+            request, "login.html",
+            {"error": "Too many failed attempts. Please wait 30 minutes and try again."},
+            status_code=429,
+        )
+
+    user_row = fetchone("SELECT * FROM users WHERE email=%s LIMIT 1", (email,))
 
     if not user_row:
-        return templates.TemplateResponse(request, "login.html", {"error": "Invalid email or password."})
+        rate_limiter.record_attempt(email, ip, "login")
+        return templates.TemplateResponse(
+            request, "login.html", {"error": "Invalid email or password."}
+        )
 
     if not user_row.get("password_hash"):
+        # Don't count "no password set" as a brute-force attempt
         return templates.TemplateResponse(request, "login.html", {
             "error": "Set your password using the link we emailed you."
         })
 
     if not verify_password(password, user_row["password_hash"]):
-        return templates.TemplateResponse(request, "login.html", {"error": "Invalid email or password."})
+        rate_limiter.record_attempt(email, ip, "login")
+        return templates.TemplateResponse(
+            request, "login.html", {"error": "Invalid email or password."}
+        )
+
+    # Successful login — clear the failure counter
+    rate_limiter.clear_on_success(email, ip, "login")
 
     role = user_row["role"]
     token = create_token({
@@ -73,7 +100,7 @@ async def logout():
     return resp
 
 
-# ── Token resolution ─────────────────────────────────────────────────────────
+# ── Token resolution ──────────────────────────────────────────────────────────
 # New tokens are 64-char raw hex (stored as sha256 in password_tokens).
 # Legacy tokens are JWTs (existing mentor/student activation emails still work).
 
@@ -101,7 +128,7 @@ def _resolve_token(token: str) -> tuple:
         return int(payload["user_id"]), None
 
 
-# ── Set-password (initial account setup) ────────────────────────────────────
+# ── Set-password (initial account setup) ─────────────────────────────────────
 
 @router.get("/set-password", response_class=HTMLResponse)
 async def set_password_page(request: Request, token: str = ""):
@@ -153,20 +180,27 @@ async def forgot_password(request: Request, email: str = Form(...)):
     from app import email_service
 
     email = email.lower().strip()
-    user = fetchone("SELECT id FROM users WHERE email=%s LIMIT 1", (email,))
-    if user:
-        raw_token = secrets.token_hex(32)
-        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
-        expires = datetime.now(timezone.utc) + timedelta(
-            minutes=settings.RESET_TOKEN_EXPIRY_MINUTES
-        )
-        execute(
-            """INSERT INTO password_tokens (user_id, token_hash, purpose, expires_at)
-               VALUES (%s, %s, 'reset', %s)""",
-            (user["id"], token_hash, expires.replace(tzinfo=None)),
-        )
-        reset_url = f"{settings.APP_BASE_URL}/reset?token={raw_token}"
-        body = f"""
+    ip = rate_limiter.get_client_ip(request)
+
+    # G1 — check limit first; if not limited, record and proceed
+    # Always return the same neutral message regardless of limit state.
+    if not rate_limiter.is_limited(email, ip, "forgot"):
+        rate_limiter.record_attempt(email, ip, "forgot")
+
+        user = fetchone("SELECT id FROM users WHERE email=%s LIMIT 1", (email,))
+        if user:
+            raw_token = secrets.token_hex(32)
+            token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+            expires = datetime.now(timezone.utc) + timedelta(
+                minutes=settings.RESET_TOKEN_EXPIRY_MINUTES
+            )
+            execute(
+                """INSERT INTO password_tokens (user_id, token_hash, purpose, expires_at)
+                   VALUES (%s, %s, 'reset', %s)""",
+                (user["id"], token_hash, expires.replace(tzinfo=None)),
+            )
+            reset_url = f"{settings.APP_BASE_URL}/reset?token={raw_token}"
+            body = f"""
 <h2>Reset Your Password</h2>
 <p>We received a request to reset the password for your Enterns Tech account.</p>
 <p style="margin:24px 0">
@@ -184,12 +218,12 @@ async def forgot_password(request: Request, email: str = Form(...)):
   If the button doesn't work, copy this link: {reset_url}
 </p>
 """
-        email_service.send_mail(
-            email,
-            "Reset your Enterns Tech password",
-            body,
-            bcc_admin=False,
-        )
+            email_service.send_mail(
+                email,
+                "Reset your Enterns Tech password",
+                body,
+                bcc_admin=False,
+            )
 
     # Always show the same neutral message to prevent account enumeration
     return templates.TemplateResponse(request, "forgot_password.html", {

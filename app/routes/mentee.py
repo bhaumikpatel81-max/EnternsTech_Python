@@ -494,7 +494,17 @@ async def invoice(request: Request, payment_id: int):
     mentee = _get_mentee(user)
     if not mentee:
         return RedirectResponse("/mentee")
+
+    # G2 — strict ownership: verify payment belongs to this mentee before building invoice.
+    # The old check (`data["student"].get("id")`) short-circuited to False when student_id
+    # was NULL, letting any mentee view any invoice.  We now assert at the DB row level.
+    payment = fetchone(
+        "SELECT student_id FROM payments WHERE id=%s LIMIT 1", (payment_id,)
+    )
+    if not payment or payment.get("student_id") != mentee["id"]:
+        return HTMLResponse("<h2>403 — Forbidden</h2>", status_code=403)
+
     data = invoice_svc.build_invoice(payment_id)
-    if not data or (data["student"].get("id") and data["student"]["id"] != mentee["id"]):
+    if not data:
         return RedirectResponse("/mentee")
     return templates.TemplateResponse(request, "invoice.html", {"invoice": data, "user": user})
