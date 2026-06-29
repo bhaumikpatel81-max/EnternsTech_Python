@@ -1,117 +1,146 @@
-# CLAUDE.md — Enterns Tech Portal
+# CLAUDE.md — Enterns Tech Portal (Python)
 
-## Project structure
+## Stack & hosting constraints
 
+| Item | Value |
+|------|-------|
+| Runtime | Python 3.9, FastAPI + PyMySQL + Jinja2 |
+| WSGI | Phusion Passenger on Bluehost shared hosting |
+| Entry point | `passenger_wsgi.py` |
+| **Hard limits** | **NO Redis, NO long-lived background processes, NO APScheduler / Celery / threading** — Passenger kills workers unpredictably |
+
+## Project layout
+
+```text
+EnternsTech_Python/
+├── app/
+│   ├── main.py              FastAPI app, middleware registration, top-level routes
+│   ├── auth.py              JWT helpers, bcrypt, get_current_user, require_role
+│   ├── config.py            pydantic-settings Settings (loaded from .env at startup)
+│   ├── database.py          fetchone / fetchall / execute / execute_many (PyMySQL)
+│   ├── email_service.py     SMTP helpers: send_mail, send_booking_confirmation, …
+│   ├── middleware/
+│   │   └── csrf.py          Double-submit cookie CSRF (G3)
+│   ├── routes/
+│   │   ├── auth.py          /login  /logout  /forgot-password  /reset  /set-password
+│   │   ├── mentee.py        /mentee/*  (dashboard, booking, invoice, reviews)
+│   │   ├── mentor.py        /mentor/*  (availability, sessions, earnings)
+│   │   ├── admin.py         /admin/*   (overview, mentees, mentors, payments, …)
+│   │   ├── payments.py      /payments/*  (Razorpay order + webhook)
+│   │   ├── partner.py       /partner/apply
+│   │   ├── cron.py          /internal/cron/*  (token-protected, Passenger-safe)
+│   │   └── psychometric.py  /psychometric/*
+│   └── services/
+│       ├── rate_limiter.py  DB-backed rate limiter (G1)
+│       ├── escrow.py        lock / release / refund escrow funds per session
+│       ├── reviews.py       submit, maybe_release, release_due, _lazy_release_due
+│       ├── scheduling.py    cancel_session, reschedule
+│       ├── capacity.py      attach mentor, capacity checks
+│       ├── invoice.py       build_invoice
+│       ├── catalog.py       get_catalog, get_plan
+│       ├── matching.py      filtered_mentors, fee_breakdown (7.5 % each side)
+│       ├── meeting.py       jitsi_url
+│       ├── privacy.py       student_view_of_mentor (strips contact info)
+│       ├── tz.py            to_utc, fmt_local, valid_tz, COMMON_TZS
+│       └── psy_*.py         psychometric resolver + scorer
+├── templates/               Jinja2 templates; dark-theme --enp-* CSS variables
+│   ├── admin/layout.html    Admin sidebar layout (CSRF meta tag + JS auto-inject)
+│   └── student/             Mentee-facing templates
+├── migrations/              SQL files numbered 001–NNN; apply in order
+│   └── 007_security.sql     rate_limits table
+├── tests/
+│   ├── conftest.py          Sets APP_ENV / SECRET_KEY / CRON_SECRET before imports
+│   ├── test_csrf.py         CSRF middleware tests (no DB needed)
+│   ├── test_rate_limiter.py Rate limiter unit tests (DB mocked)
+│   └── test_cron.py         Cron endpoint tests (DB mocked)
+├── requirements.txt         Runtime dependencies
+├── requirements-dev.txt     pytest
+└── .env                     Not committed — DB creds, SECRET_KEY, CRON_SECRET, …
 ```
-EnternsTech/
-├── enterns-portal/           WordPress plugin (PHP 7.4+)
-│   ├── enterns-portal.php    Plugin entry — defines ENP_VERSION, ENP_DIR, ENP_URL
-│   ├── includes/
-│   │   ├── install.php       Activation: tables, roles, WP pages
-│   │   ├── config.php        Constants (email, plan IDs, Razorpay keys)
-│   │   ├── payments.php      Razorpay order creation + webhook verification
-│   │   ├── student.php       Student AJAX handlers
-│   │   ├── shortcodes.php    [enp_admin], [enp_mentor], [enp_student], [enp_partner_form]
-│   │   ├── psy-bank.php      AUTO-GENERATED — 178 question items as a PHP array
-│   │   ├── psy-install.php   Psychometric tables + seed + helpers
-│   │   ├── psy-resolver.php  ENP_Psy_Resolver — per-candidate paper builder
-│   │   ├── psy-scorer.php    ENP_Psy_Scorer — scoring engine (static methods)
-│   │   ├── psy-ajax.php      AJAX endpoints for candidate + admin psychometric flows
-│   │   └── psy-shortcode.php [enp_psychometric] shortcode + asset enqueueing
-│   ├── templates/
-│   │   ├── student-dashboard.php
-│   │   ├── mentor-dashboard.php
-│   │   ├── partner-form.php
-│   │   └── psy-candidate.php  Multi-step candidate assessment UI
-│   ├── assets/
-│   │   ├── css/portal.css     Dark-theme design system (--cyan, --bg, --surf, etc.)
-│   │   ├── css/psychometric.css  Assessment-specific styles
-│   │   └── js/psychometric.js    Candidate flow JS (multi-step, autosave, drag-and-drop rank)
-│   └── tests/
-│       └── psy-scorer-test.php  Unit tests — run: php enterns-portal/tests/psy-scorer-test.php
-├── admin-portal/
-│   ├── index.php             Standalone admin portal (session auth + PDO + WP bootstrap)
-│   └── config.php            DB creds (not committed)
-└── docs/
-    ├── HANDOFF_Psychometric_Module_v2.md   Full psychometric spec
-    └── Enterns_Psychometric_QuestionBank.xlsx   Source question bank (178 items)
+
+## Mandatory conventions
+
+Apply to **every `.py` file you touch**:
+
+1. `from __future__ import annotations` — first non-comment line
+2. DB access **only** via `fetchone` / `fetchall` / `execute` / `execute_many` from `app.database` — never raw pymysql calls in routes or services
+3. Money is **paise (int)** everywhere; format for display only at the template layer
+4. Datetimes are **naive UTC** in the DB; convert to local only via `app.services.tz` helpers
+5. Platform fee: 7.5 % each side (`settings.PLATFORM_FEE_MENTEE_PCT` / `_MENTOR_PCT`)
+6. Privacy: never expose cross-role contact info (mentee email/phone hidden from mentor and vice-versa — use `privacy.student_view_of_mentor`)
+7. No comments explaining *what* the code does; only add a comment when the *why* is non-obvious
+
+## Database
+
+`app/database.py` — lazy connections (a new connection opens and closes per call; no pool):
+
+| Helper | Returns |
+|--------|---------|
+| `fetchone(sql, params)` | `dict \| None` |
+| `fetchall(sql, params)` | `list[dict]` |
+| `execute(sql, params)` | `int` — lastrowid for INSERT, rowcount for UPDATE/DELETE |
+| `execute_many(sql, params_list)` | `int` — rowcount |
+
+### Migrations
+
+```bash
+mysql -u <user> -p <db> < migrations/007_security.sql
+# Apply each numbered file in order on the live DB.
 ```
 
-## Psychometric module
+### Key tables
 
-### Tables (prefix: `wp_`)
-- `psy_items` — seeded from `psy-bank.php`; columns include `correct` and `reverse_scored`
-- `psy_assessments` — one row per candidate link; token, region, edu_level, field, status, selected_items_json
-- `psy_responses` — per-section autosave rows keyed by `(assessment_id, section)`
-- `psy_scores` — one row per submitted assessment; all indices + bands + recommendation
+`users`, `students` ← mentees live here, `mentors`, `sessions`, `payments`,
+`password_tokens`, `reviews`, `escrow`, `requests`, `rate_limits`, `app_settings`
 
-### Question bank
-`psy-bank.php` is auto-generated from `docs/Enterns_Psychometric_QuestionBank.xlsx` using:
+> The app code uses the role name `"student"` in JWTs and the `students` table,
+> but the UI and URLs say "mentee".  Do not rename the DB column or JWT field.
+
+## Auth
+
+- JWT stored in httponly cookie **`enp_token`**; roles: `admin`, `student`, `mentor`
+- `get_current_user(request)` → JWT payload dict or `None`
+- `require_role(role)` → FastAPI dependency; redirects to `/login` on failure
+- Password tokens in `password_tokens` table — 64-char hex, sha256-hashed at rest
+
+## Security invariants (Phase 1 / G1-G3)
+
+| Invariant | Where |
+|-----------|-------|
+| CSRF | `CSRFMiddleware` (double-submit cookie) — exempt: `/api/`, `/internal/`, `/health`, `/static/`, `application/json` |
+| Rate limit | `app.services.rate_limiter` keyed on **(email, IP)** — login 5/30 min, forgot 3/60 min |
+| Invoice IDOR | `payments.student_id == mentee.id` checked from DB row before `build_invoice()` |
+
+## Cron (G7)
+
+`GET /internal/cron/release-reviews?secret=CRON_SECRET` calls `reviews_svc.release_due()`.
+
+Add `CRON_SECRET` to `.env`.  Register in Bluehost cPanel → Cron Jobs:
+
+```bash
+curl -s "https://yourdomain.com/internal/cron/release-reviews?secret=YOUR_SECRET" >/dev/null 2>&1
 ```
-node scripts/parse-bank.js   # (scratchpad one-off; not committed)
+
+Recommended frequency: every 6 hours.  An empty `CRON_SECRET` always returns 403.
+
+## Running locally
+
+```bash
+cp .env.example .env   # fill in DB creds, SECRET_KEY, etc.
+python -m uvicorn app.main:app --reload
 ```
-**Never edit `psy-bank.php` by hand.** Re-run the Node script if the Excel file changes.
-
-178 items across 8 sections:
-| Section | Type | Count |
-|---------|------|-------|
-| S1 | Likert (strengths) | 20 |
-| S2 | Forced-choice A/B | 15 |
-| S3 | Likert (learning) | 10 |
-| S4 | Rank (motivation) | 10 |
-| S5 | Likert (engagement) | 15 |
-| S6 | Likert Big Five | 25 (5 traits × 5) |
-| S7 | MCQ reasoning | 47 |
-| S8 | Open text | varies |
-
-### Resolver (ENP_Psy_Resolver)
-- `resolve(bool $strip_sensitive)` — builds paper per candidate; random selection, region/edu/field filtered
-- `resolve_and_persist(int $assessment_id)` — saves selected item IDs as JSON to DB; returns JSON string
-- `rebuild_from_persisted(string $json, bool $strip_sensitive)` — restores paper from DB
-- **Sec6**: exactly 3 items per Big Five trait (C/E/ES/O/A)
-- **Sec7**: difficulty-weighted; prefers field-specific items; tops-up from ALL-field pool
-- **Gap warning**: if pool too small, logs to `enp_psy_content_gaps` WP option + `error_log`
-
-### Scoring (ENP_Psy_Scorer)
-- Likert index: `(sum - min) / (max - min) × 100`
-- Reverse scoring: `6 - raw` (applied when `reverse_scored = 'Y'`)
-- Big Five normalisation: `(sum - n) / (n×5 - n) × 100` (min=n items × 1, max=n items × 5)
-- Bands: ≥80 Strong | ≥60 Solid | ≥40 Mixed | <40 Watch
-- Reasoning: x/6 correct; 5-6 strong | 3-4 adequate | ≤2 gap
-- Sec2 (preference): A% ≥65 → Analytical | ≤35 → People | else Balanced
-- Sec3 (learning): ≥75 self-directed | 50-74 capable-with-support | <50 needs-structured-onboarding
-- `correct` and `reverse_scored` are **read from the DB** — never from client payload
-
-### Security invariants
-1. `correct` and `reverse_scored` are **never sent to the browser** — `strip_item()` removes them before any AJAX response
-2. `enp_psy_ajax_autosave()` returns `{status:"ok"}` only
-3. `enp_psy_ajax_submit()` returns `{status:"ok"}` only — score is never exposed to the candidate
-4. The candidate assessment page (`psy-assessment`) sends `Cache-Control: no-store` + LiteSpeed no-cache hooks
-
-### Assessment link
-- Generated by admin; valid 7 days (`ENP_PSY_LINK_EXPIRY_DAYS = 7`)
-- Token: `bin2hex(random_bytes(32))`
-- Candidate accesses via `?t=TOKEN` — no WordPress login required
-- Rate limit on submit: 5 attempts per hour (WP transients)
-
-## Admin portal
-- Lives at `/admin-portal/index.php` — not a WP page
-- Session auth (username/password stored in `config.php`)
-- Loads WP via `wp-load.php` for WP functions (mail, options, nonces)
-- Sections: overview | payments | mentors | students | requests | assessments | sessions
-- Assessments section sub-tabs: list | generate | settings (Razorpay toggle)
-- Result view (`?section=assessments&view=ID`): shows all scores/bands/Big Five/reasoning/open responses + editable recommendation
-- Razorpay per-product toggle: stored in WP option `enp_psy_rzp_plans`
 
 ## Running tests
-```bash
-php enterns-portal/tests/psy-scorer-test.php
-# Should print: N/N passed — all green
-```
-No WP or DB needed — tests use `ReflectionClass` to access private static methods.
 
-## Conventions
-- No score/band/feedback is shown to candidates — thank-you page only
-- Admin result email goes to `admin@enternstech.com` on every submission
-- All PHP files exit early if `ABSPATH` not defined (except standalone tools/tests)
-- CSS variables in `portal.css` are the single source of truth for the design system
+```bash
+pip install -r requirements-dev.txt
+pytest tests/ -v
+# No real DB or SMTP needed — tests mock app.database helpers.
+```
+
+## Out of scope / future work
+
+- G9 referral redemption — net-new feature, spec separately
+- Phase 3: mentor payout flow, concurrency-safe slot booking, DB transactions
+- Phase 4: migrate `payments.amount` float → paise int (BACKUP FIRST gate)
+- Phase 5: pagination on admin lists, admin audit trail

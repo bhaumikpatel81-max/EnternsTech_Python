@@ -74,6 +74,9 @@ class Settings(BaseSettings):
     # Review release window in days (Phase 06)
     REVIEW_RELEASE_DAYS: int = 7
 
+    # Cron secret — protect /internal/cron/* endpoints (G7)
+    CRON_SECRET: str = ""
+
     class Config:
         env_file = _ENV_PATH
         extra = "ignore"

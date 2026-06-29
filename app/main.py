@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.middleware.csrf import CSRFMiddleware
-from app.routes import admin, auth, mentor, mentee, partner, payments, psychometric
+from app.routes import admin, auth, cron, mentor, mentee, partner, payments, psychometric
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -67,6 +67,7 @@ app.include_router(mentor.router)
 app.include_router(admin.router)
 app.include_router(payments.router)
 app.include_router(partner.router)
+app.include_router(cron.router)
 app.include_router(psychometric.router)
 
 
