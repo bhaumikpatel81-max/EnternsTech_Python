@@ -129,11 +129,18 @@
 
 {% block scripts %}
 <script>
-async function markComplete(id) {
+const _csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+
+function _fd(...pairs) {
   const fd = new FormData();
-  fd.append('session_id', id);
-  fd.append('mentor_paid', '0');
-  const r = await fetch('/admin/sessions/mark-complete', { method: 'POST', body: fd });
+  for (let i = 0; i < pairs.length; i += 2) fd.append(pairs[i], pairs[i + 1]);
+  fd.append('csrf_token', _csrf);
+  return fd;
+}
+
+async function markComplete(id) {
+  const r = await fetch('/admin/sessions/mark-complete',
+    { method: 'POST', body: _fd('session_id', id, 'mentor_paid', '0') });
   const d = await r.json();
   if (d.ok) location.reload();
   else alert(d.error || 'Failed');
@@ -146,12 +153,10 @@ function openCancel(id) {
 }
 
 async function doCancel() {
-  const id = document.getElementById('cancel-session-id').value;
+  const id     = document.getElementById('cancel-session-id').value;
   const reason = document.getElementById('cancel-reason').value;
-  const r = await fetch('/admin/sessions/cancel', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session_id: +id, reason })
-  });
+  const r = await fetch('/admin/sessions/cancel',
+    { method: 'POST', body: _fd('session_id', id, 'reason', reason) });
   const d = await r.json();
   if (d.ok) location.reload();
   else alert(d.error || 'Failed');
@@ -163,13 +168,11 @@ function openReschedule(id) {
 }
 
 async function doReschedule() {
-  const id = document.getElementById('reschedule-session-id').value;
+  const id   = document.getElementById('reschedule-session-id').value;
   const slot = document.getElementById('reschedule-slot').value;
   if (!slot) { alert('Choose a date/time.'); return; }
-  const r = await fetch('/admin/sessions/reschedule', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session_id: +id, new_slot: slot })
-  });
+  const r = await fetch('/admin/sessions/reschedule',
+    { method: 'POST', body: _fd('session_id', id, 'new_slot_utc', slot) });
   const d = await r.json();
   if (d.ok) location.reload();
   else alert(d.error || 'Failed');
@@ -177,10 +180,8 @@ async function doReschedule() {
 
 async function doNoShow(id) {
   if (!confirm('Mark this session as no-show?')) return;
-  const r = await fetch('/admin/sessions/no-show', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session_id: id })
-  });
+  const r = await fetch('/admin/sessions/no-show',
+    { method: 'POST', body: _fd('session_id', id) });
   const d = await r.json();
   if (d.ok) location.reload();
   else alert(d.error || 'Failed');

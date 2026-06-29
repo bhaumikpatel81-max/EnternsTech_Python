@@ -19,6 +19,14 @@ What is NOT checked
 - Paths starting with ``/internal/``: cron endpoints protected by CRON_SECRET.
 - Requests with ``application/json`` Content-Type.
 
+  .. WARNING::
+     This exemption is only safe while this application does **not** send a
+     permissive ``Access-Control-Allow-Origin`` response header.  If CORS is
+     ever opened (``*`` or any untrusted third-party origin), browsers will
+     allow cross-site scripts to make credentialled JSON POSTs, completely
+     bypassing this exemption.  Any future addition of CORS headers must be
+     reviewed against this exemption before deployment.
+
 Notes
 -----
 - ``BaseHTTPMiddleware`` caches ``request.form()`` so FastAPI ``Form(...)``
