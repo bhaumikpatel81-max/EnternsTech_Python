@@ -28,25 +28,40 @@ def client():
 
 # ── Access control ────────────────────────────────────────────────────────────
 
-def test_no_secret_is_forbidden(client):
+def test_no_header_is_forbidden(client):
     resp = client.get("/internal/cron/release-reviews")
     assert resp.status_code == 403
 
 
-def test_wrong_secret_is_forbidden(client):
-    resp = client.get("/internal/cron/release-reviews?secret=definitely-wrong")
+def test_wrong_header_is_forbidden(client):
+    resp = client.get(
+        "/internal/cron/release-reviews",
+        headers={"X-Cron-Secret": "definitely-wrong"},
+    )
     assert resp.status_code == 403
 
 
-def test_empty_secret_param_is_forbidden(client):
-    resp = client.get("/internal/cron/release-reviews?secret=")
+def test_empty_header_is_forbidden(client):
+    resp = client.get(
+        "/internal/cron/release-reviews",
+        headers={"X-Cron-Secret": ""},
+    )
+    assert resp.status_code == 403
+
+
+def test_query_param_alone_is_forbidden(client):
+    """Old query-param interface must no longer work."""
+    resp = client.get(f"/internal/cron/release-reviews?secret={_CRON_SECRET}")
     assert resp.status_code == 403
 
 
 # ── Happy path ────────────────────────────────────────────────────────────────
 
-def test_correct_secret_returns_ok(client):
-    resp = client.get(f"/internal/cron/release-reviews?secret={_CRON_SECRET}")
+def test_correct_header_returns_ok(client):
+    resp = client.get(
+        "/internal/cron/release-reviews",
+        headers={"X-Cron-Secret": _CRON_SECRET},
+    )
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "ok"

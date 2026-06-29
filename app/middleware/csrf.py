@@ -14,7 +14,7 @@ Mechanism — double-submit cookie
 
 What is NOT checked
 -------------------
-- Paths starting with ``/api/``   : JSON API calls; Content-Type + SameSite=Lax
+- Paths starting with ``/api/``   : JSON API calls; Content-Type + SameSite=Strict
                                     on the session cookie already prevent CSRF.
 - Paths starting with ``/internal/``: cron endpoints protected by CRON_SECRET.
 - Requests with ``application/json`` Content-Type.

@@ -118,7 +118,8 @@ mysql -u <user> -p <db> < migrations/007_security.sql
 Add `CRON_SECRET` to `.env`.  Register in Bluehost cPanel → Cron Jobs:
 
 ```bash
-curl -s "https://yourdomain.com/internal/cron/release-reviews?secret=YOUR_SECRET" >/dev/null 2>&1
+curl -s -H "X-Cron-Secret: YOUR_SECRET" \
+     "https://yourdomain.com/internal/cron/release-reviews" >/dev/null 2>&1
 ```
 
 Recommended frequency: every 6 hours.  An empty `CRON_SECRET` always returns 403.
