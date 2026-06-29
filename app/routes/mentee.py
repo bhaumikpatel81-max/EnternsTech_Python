@@ -2,11 +2,14 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime, timedelta, timezone
+
+import pymysql
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+
 from app.auth import get_current_user
-from app.database import fetchone, fetchall, execute
+from app.database import execute, execute_txn, fetchall, fetchone, fetchone_txn, get_transaction
 from app import email_service
 from app.services import tz as tz_svc
 from app.services.matching import filtered_mentors, fee_breakdown
@@ -281,27 +284,45 @@ async def book_slot(request: Request):
         for s in slots_raw:
             if s not in valid_keys:
                 return JSONResponse({"ok": False, "error": f"Slot {s} no longer available."})
-        first_id = execute(
-            """INSERT INTO sessions
-               (student_id, mentor_id, scheduled_at, status, booked_by, topic, rate_applied, mentee_tz)
-               VALUES (%s,%s,%s,'scheduled','mentee',%s,%s,%s)""",
-            (mentee["id"], mentor["id"], slots_raw[0], topic, rate_decimal, mentee_tz),
-        )
-        bundle_id = first_id
-        execute("UPDATE sessions SET bundle_id=%s WHERE id=%s", (bundle_id, first_id))
-        url = jitsi_url(first_id)
-        execute("UPDATE sessions SET meeting_link=%s WHERE id=%s", (url, first_id))
-        session_ids = [first_id]
-        for slot in slots_raw[1:]:
-            sid = execute(
-                """INSERT INTO sessions
-                   (student_id, mentor_id, scheduled_at, status, booked_by, topic,
-                    rate_applied, bundle_id, mentee_tz)
-                   VALUES (%s,%s,%s,'scheduled','mentee',%s,%s,%s,%s,%s)""",
-                (mentee["id"], mentor["id"], slot, topic, rate_decimal, bundle_id, mentee_tz),
-            )
-            execute("UPDATE sessions SET meeting_link=%s WHERE id=%s", (jitsi_url(sid), sid))
-            session_ids.append(sid)
+        bundle_id: int
+        session_ids: list[int]
+        url: str
+        try:
+            with get_transaction() as conn:
+                for slot in slots_raw:
+                    conflict = fetchone_txn(
+                        conn,
+                        """SELECT id FROM sessions WHERE mentor_id=%s AND scheduled_at=%s
+                           AND status NOT IN ('cancelled','rescheduled','no_show') LIMIT 1 FOR UPDATE""",
+                        (mentor["id"], slot),
+                    )
+                    if conflict:
+                        return JSONResponse({"ok": False, "error": f"Slot {slot} no longer available."})
+                first_id = execute_txn(
+                    conn,
+                    """INSERT INTO sessions
+                       (student_id, mentor_id, scheduled_at, status, booked_by, topic, rate_applied, mentee_tz)
+                       VALUES (%s,%s,%s,'scheduled','mentee',%s,%s,%s)""",
+                    (mentee["id"], mentor["id"], slots_raw[0], topic, rate_decimal, mentee_tz),
+                )
+                bundle_id = first_id
+                execute_txn(conn, "UPDATE sessions SET bundle_id=%s WHERE id=%s", (bundle_id, first_id))
+                url = jitsi_url(first_id)
+                execute_txn(conn, "UPDATE sessions SET meeting_link=%s WHERE id=%s", (url, first_id))
+                session_ids = [first_id]
+                for slot in slots_raw[1:]:
+                    sid = execute_txn(
+                        conn,
+                        """INSERT INTO sessions
+                           (student_id, mentor_id, scheduled_at, status, booked_by, topic,
+                            rate_applied, bundle_id, mentee_tz)
+                           VALUES (%s,%s,%s,'scheduled','mentee',%s,%s,%s,%s,%s)""",
+                        (mentee["id"], mentor["id"], slot, topic, rate_decimal, bundle_id, mentee_tz),
+                    )
+                    execute_txn(conn, "UPDATE sessions SET meeting_link=%s WHERE id=%s", (jitsi_url(sid), sid))
+                    session_ids.append(sid)
+        except pymysql.err.IntegrityError:
+            return JSONResponse({"ok": False, "error": "One or more slots no longer available."})
         escrow_svc.lock(
             mentee["id"], mentor["id"],
             fee["mentor_gets"] * len(slots_raw),
@@ -318,14 +339,29 @@ async def book_slot(request: Request):
 
     if slot_dt_str not in valid_keys:
         return JSONResponse({"ok": False, "error": "Slot no longer available."})
-    session_id = execute(
-        """INSERT INTO sessions
-           (student_id, mentor_id, scheduled_at, status, booked_by, topic, rate_applied, mentee_tz)
-           VALUES (%s,%s,%s,'scheduled','mentee',%s,%s,%s)""",
-        (mentee["id"], mentor["id"], slot_dt_str, topic, rate_decimal, mentee_tz),
-    )
-    url = jitsi_url(session_id)
-    execute("UPDATE sessions SET meeting_link=%s WHERE id=%s", (url, session_id))
+    session_id: int
+    url: str
+    try:
+        with get_transaction() as conn:
+            conflict = fetchone_txn(
+                conn,
+                """SELECT id FROM sessions WHERE mentor_id=%s AND scheduled_at=%s
+                   AND status NOT IN ('cancelled','rescheduled','no_show') LIMIT 1 FOR UPDATE""",
+                (mentor["id"], slot_dt_str),
+            )
+            if conflict:
+                return JSONResponse({"ok": False, "error": "Slot no longer available."})
+            session_id = execute_txn(
+                conn,
+                """INSERT INTO sessions
+                   (student_id, mentor_id, scheduled_at, status, booked_by, topic, rate_applied, mentee_tz)
+                   VALUES (%s,%s,%s,'scheduled','mentee',%s,%s,%s)""",
+                (mentee["id"], mentor["id"], slot_dt_str, topic, rate_decimal, mentee_tz),
+            )
+            url = jitsi_url(session_id)
+            execute_txn(conn, "UPDATE sessions SET meeting_link=%s WHERE id=%s", (url, session_id))
+    except pymysql.err.IntegrityError:
+        return JSONResponse({"ok": False, "error": "Slot no longer available."})
     escrow_svc.lock(mentee["id"], mentor["id"], fee["mentor_gets"], 1)
     try:
         when_dt = datetime.strptime(slot_dt_str, "%Y-%m-%d %H:%M")

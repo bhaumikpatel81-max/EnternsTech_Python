@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from app.auth import get_current_user
-from app.database import fetchone, fetchall, execute
+from app.database import execute, execute_txn, fetchall, fetchone, get_transaction
 from app.services import tz as tz_svc
 from app.services import escrow as escrow_svc
 from app.services import scheduling as sched_svc
@@ -232,11 +232,13 @@ async def mark_complete(request: Request, session_id: int):
     if session["status"] == "completed":
         return JSONResponse({"ok": True, "already": True})
 
-    execute("UPDATE sessions SET status='completed' WHERE id=%s", (session_id,))
-    execute(
-        "UPDATE students SET sessions_used=sessions_used+1 WHERE id=%s",
-        (session["student_id"],),
-    )
+    with get_transaction() as conn:
+        execute_txn(conn, "UPDATE sessions SET status='completed' WHERE id=%s", (session_id,))
+        execute_txn(
+            conn,
+            "UPDATE students SET sessions_used=sessions_used+1 WHERE id=%s",
+            (session["student_id"],),
+        )
     escrow_svc.release_for_session(session_id)
 
     # Check if this completes a bundle

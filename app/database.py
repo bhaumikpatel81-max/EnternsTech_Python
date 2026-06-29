@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 import pymysql
 import pymysql.cursors
 from contextlib import contextmanager
 from typing import Generator
+
 from app.config import settings
 
 
@@ -56,3 +58,48 @@ def execute_many(sql: str, params_list: list[tuple]) -> int:
         with conn.cursor() as cur:
             cur.executemany(sql, params_list)
             return cur.rowcount
+
+
+# ── Transaction helpers (G10, G14) ───────────────────────────────────────────
+# Use these when multiple statements must succeed or fail together,
+# or when SELECT ... FOR UPDATE is needed to prevent concurrent bookings.
+
+@contextmanager
+def get_transaction() -> Generator[pymysql.Connection, None, None]:
+    """Open a connection with autocommit disabled.
+
+    Commits on normal exit; rolls back and re-raises on any exception.
+
+    Usage::
+
+        with get_transaction() as conn:
+            row = fetchone_txn(conn, "SELECT … FOR UPDATE", (…,))
+            execute_txn(conn, "INSERT INTO …", (…,))
+        # commit happens here; rollback on exception
+    """
+    conn = _connect()
+    try:
+        conn.autocommit(False)
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def fetchone_txn(conn: pymysql.Connection, sql: str, params: tuple = ()) -> dict | None:
+    """fetchone on an existing transaction connection."""
+    with conn.cursor() as cur:
+        cur.execute(sql, params)
+        return cur.fetchone()
+
+
+def execute_txn(conn: pymysql.Connection, sql: str, params: tuple = ()) -> int:
+    """execute on an existing transaction connection.
+    Returns lastrowid for INSERT, rowcount otherwise.
+    """
+    with conn.cursor() as cur:
+        cur.execute(sql, params)
+        return cur.lastrowid or cur.rowcount

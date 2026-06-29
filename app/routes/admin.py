@@ -1,12 +1,16 @@
+from __future__ import annotations
+
 import json
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+
 from app.auth import get_current_user, hash_password, create_token
-from app.database import fetchone, fetchall, execute
+from app.database import execute, execute_txn, fetchall, fetchone, get_transaction
 from app.config import settings
 from app import email_service
 from app.routes.payments import activate_student
@@ -222,6 +226,21 @@ async def update_extra_fields(
     return JSONResponse({"ok": True})
 
 
+@router.post("/mentors/payout")
+async def mentor_payout(
+    request:   Request,
+    mentor_id: int = Form(...),
+    notes:     str = Form(""),
+):
+    if not _admin_required(request):
+        return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
+    mentor = fetchone("SELECT id, full_name FROM mentors WHERE id=%s", (mentor_id,))
+    if not mentor:
+        return JSONResponse({"ok": False, "error": "Mentor not found"})
+    result = escrow_svc.payout_mentor(mentor_id, notes)
+    return JSONResponse(result)
+
+
 # ── Payments ──────────────────────────────────────────────────────────────────
 
 @router.get("/payments", response_class=HTMLResponse)
@@ -349,17 +368,21 @@ async def add_session(
 async def mark_complete(request: Request, session_id: int = Form(...), mentor_paid: int = Form(0)):
     if not _admin_required(request):
         return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
-    execute(
-        "UPDATE sessions SET status='completed', mentor_paid=%s WHERE id=%s",
-        (bool(mentor_paid), session_id),
-    )
     session = fetchone("SELECT * FROM sessions WHERE id=%s", (session_id,))
-    if session:
-        execute(
+    if not session:
+        return JSONResponse({"ok": False, "error": "Session not found"})
+    with get_transaction() as conn:
+        execute_txn(
+            conn,
+            "UPDATE sessions SET status='completed', mentor_paid=%s WHERE id=%s",
+            (bool(mentor_paid), session_id),
+        )
+        execute_txn(
+            conn,
             "UPDATE students SET sessions_used=sessions_used+1 WHERE id=%s",
             (session["student_id"],),
         )
-        escrow_svc.release_for_session(session_id)
+    escrow_svc.release_for_session(session_id)
     return JSONResponse({"ok": True})
 
 
