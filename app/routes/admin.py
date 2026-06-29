@@ -5,26 +5,29 @@ import os
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from app.auth import get_current_user, hash_password, create_token
-from app.database import execute, execute_txn, fetchall, fetchone, get_transaction
-from app.config import settings
 from app import email_service
+from app.auth import create_token, get_current_user, hash_password
+from app.config import settings
+from app.database import execute, execute_txn, fetchall, fetchone, get_transaction
 from app.routes.payments import activate_student
-from app.services import escrow as escrow_svc
-from app.services import scheduling as sched_svc
-from app.services import reviews as reviews_svc
+from app.services import audit as audit_svc
 from app.services import capacity as cap_svc
+from app.services import escrow as escrow_svc
 from app.services import invoice as invoice_svc
-from app.services.meeting import jitsi_url
+from app.services import reviews as reviews_svc
+from app.services import scheduling as sched_svc
 from app.services.matching import fee_breakdown
+from app.services.meeting import jitsi_url
 
 router = APIRouter(prefix="/admin")
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+
+PAGE_SIZE = 50
 
 
 def _admin_required(request: Request):
@@ -34,51 +37,66 @@ def _admin_required(request: Request):
     return user
 
 
+def _page_ctx(page: int, total: int) -> dict:
+    total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+    page = max(1, min(page, total_pages))
+    return {
+        "page":        page,
+        "total_pages": total_pages,
+        "total_count": total,
+        "offset":      (page - 1) * PAGE_SIZE,
+        "limit":       PAGE_SIZE,
+    }
+
+
 # ── Overview ─────────────────────────────────────────────────────────────────
 
 @router.get("", response_class=HTMLResponse)
 async def overview(request: Request):
     if not _admin_required(request):
         return RedirectResponse("/login")
-    # Lazy release trigger
     try:
         reviews_svc._lazy_release_due()
     except Exception:
         pass
     stats = {
-        "students":       (fetchone("SELECT COUNT(*) AS n FROM students WHERE status='active'") or {}).get("n", 0),
-        "mentors":        (fetchone("SELECT COUNT(*) AS n FROM mentors WHERE status='approved'") or {}).get("n", 0),
-        "pending_mentors":(fetchone("SELECT COUNT(*) AS n FROM mentors WHERE status='pending'") or {}).get("n", 0),
-        "sessions":       (fetchone("SELECT COUNT(*) AS n FROM sessions") or {}).get("n", 0),
-        "open_requests":  (fetchone("SELECT COUNT(*) AS n FROM requests WHERE status='open'") or {}).get("n", 0),
-        "assessments":    (fetchone("SELECT COUNT(*) AS n FROM psy_assessments") or {}).get("n", 0),
+        "students":        (fetchone("SELECT COUNT(*) AS n FROM students WHERE status='active'") or {}).get("n", 0),
+        "mentors":         (fetchone("SELECT COUNT(*) AS n FROM mentors WHERE status='approved'") or {}).get("n", 0),
+        "pending_mentors": (fetchone("SELECT COUNT(*) AS n FROM mentors WHERE status='pending'") or {}).get("n", 0),
+        "sessions":        (fetchone("SELECT COUNT(*) AS n FROM sessions") or {}).get("n", 0),
+        "open_requests":   (fetchone("SELECT COUNT(*) AS n FROM requests WHERE status='open'") or {}).get("n", 0),
+        "assessments":     (fetchone("SELECT COUNT(*) AS n FROM psy_assessments") or {}).get("n", 0),
     }
     return templates.TemplateResponse(request, "admin/overview.html", {
-        "stats": stats, "section": "overview"
+        "stats": stats, "section": "overview",
     })
 
 
 # ── Students ──────────────────────────────────────────────────────────────────
 
 @router.get("/mentees", response_class=HTMLResponse)
-async def students(request: Request, q: str = ""):
+async def students(request: Request, q: str = "", page: int = Query(1)):
     if not _admin_required(request):
         return RedirectResponse("/login")
-    sql = """
-        SELECT s.*, m.full_name AS mentor_name,
+    where = ""
+    params: tuple = ()
+    if q:
+        where = " WHERE s.full_name LIKE %s OR s.email LIKE %s"
+        params = (f"%{q}%", f"%{q}%")
+    total = int((fetchone(f"SELECT COUNT(*) AS n FROM students s{where}", params) or {}).get("n", 0))
+    pg = _page_ctx(page, total)
+    rows = fetchall(
+        f"""SELECT s.*, m.full_name AS mentor_name,
                (SELECT MIN(ses.scheduled_at)
                 FROM sessions ses
                 WHERE ses.student_id=s.id AND ses.status IN ('scheduled','confirmed','active')
                   AND ses.scheduled_at > NOW()
                ) AS next_session_at
-        FROM students s LEFT JOIN mentors m ON s.mentor_id=m.id"""
-    params: tuple = ()
-    if q:
-        sql += " WHERE s.full_name LIKE %s OR s.email LIKE %s"
-        params = (f"%{q}%", f"%{q}%")
-    sql += " ORDER BY s.created_at DESC"
-    rows = fetchall(sql, params)
-    # Offense counts
+            FROM students s LEFT JOIN mentors m ON s.mentor_id=m.id
+            {where}
+            ORDER BY s.created_at DESC LIMIT %s OFFSET %s""",
+        params + (pg["limit"], pg["offset"]),
+    )
     for r in rows:
         r["offense_count"] = sched_svc.offense_count(r["id"], "student")
     mentors = fetchall("SELECT id, full_name FROM mentors WHERE status='approved' ORDER BY full_name")
@@ -87,6 +105,7 @@ async def students(request: Request, q: str = ""):
     return templates.TemplateResponse(request, "admin/students.html", {
         "students": rows, "mentors": mentors,
         "section": "students", "q": q, "plan_catalog": plan_catalog,
+        **pg,
     })
 
 
@@ -96,7 +115,8 @@ async def activate_student_manual(
     email:   str = Form(...),
     plan_id: str = Form(...),
 ):
-    if not _admin_required(request):
+    user = _admin_required(request)
+    if not user:
         return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
     from app.services.catalog import get_plan
     plan = get_plan(plan_id)
@@ -107,17 +127,31 @@ async def activate_student_manual(
         (email, plan_id, plan["paise"]),
     )
     result = activate_student(email, plan_id, pay_id)
+    if result.get("ok"):
+        audit_svc.log(
+            int(user["sub"]), "student.activated",
+            target_table="students", target_id=result.get("student_id"),
+            notes=f"email={email} plan={plan_id}",
+            ip=request.client.host or "",
+        )
     return JSONResponse(result)
 
 
 @router.post("/mentees/assign-mentor")
 async def assign_mentor(request: Request, student_id: int = Form(...), mentor_id: int = Form(...)):
-    if not _admin_required(request):
+    user = _admin_required(request)
+    if not user:
         return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
     result = cap_svc.attach(student_id, mentor_id, admin_override=True)
     if not result.get("ok") and result.get("error") != "Already assigned":
         return JSONResponse({"ok": False, "error": result.get("error", "Cannot assign")})
     execute("UPDATE students SET mentor_id=%s WHERE id=%s", (mentor_id, student_id))
+    audit_svc.log(
+        int(user["sub"]), "mentor.assigned",
+        target_table="students", target_id=student_id,
+        notes=f"mentor_id={mentor_id}",
+        ip=request.client.host or "",
+    )
     return JSONResponse({"ok": True})
 
 
@@ -132,31 +166,42 @@ async def update_sessions(request: Request, student_id: int = Form(...), session
 # ── Mentors / Applications ────────────────────────────────────────────────────
 
 @router.get("/mentors", response_class=HTMLResponse)
-async def mentors(request: Request, tab: str = "approved"):
+async def mentors(request: Request, tab: str = "approved", page: int = Query(1)):
     if not _admin_required(request):
         return RedirectResponse("/login")
     if tab == "pending":
-        rows = fetchall("SELECT * FROM mentors WHERE status='pending' ORDER BY created_at DESC")
+        total = int((fetchone("SELECT COUNT(*) AS n FROM mentors WHERE status='pending'") or {}).get("n", 0))
+        pg = _page_ctx(page, total)
+        rows = fetchall(
+            "SELECT * FROM mentors WHERE status='pending' ORDER BY created_at DESC LIMIT %s OFFSET %s",
+            (pg["limit"], pg["offset"]),
+        )
     else:
-        rows = fetchall("SELECT * FROM mentors WHERE status='approved' ORDER BY full_name")
+        total = int((fetchone("SELECT COUNT(*) AS n FROM mentors WHERE status='approved'") or {}).get("n", 0))
+        pg = _page_ctx(page, total)
+        rows = fetchall(
+            "SELECT * FROM mentors WHERE status='approved' ORDER BY full_name LIMIT %s OFFSET %s",
+            (pg["limit"], pg["offset"]),
+        )
         for r in rows:
             r["avg_rating"] = reviews_svc.mentor_avg(r["id"])
             r["offense_count"] = sched_svc.offense_count(r["id"], "mentor")
     return templates.TemplateResponse(request, "admin/mentors.html", {
-        "mentors": rows, "section": "mentors", "tab": tab,
+        "mentors": rows, "section": "mentors", "tab": tab, **pg,
     })
 
 
 @router.post("/mentors/approve")
 async def approve_mentor(request: Request, mentor_id: int = Form(...)):
-    if not _admin_required(request):
+    user = _admin_required(request)
+    if not user:
         return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
     mentor = fetchone("SELECT * FROM mentors WHERE id=%s", (mentor_id,))
     if not mentor:
         return JSONResponse({"ok": False, "error": "Mentor not found"})
-    user = fetchone("SELECT id FROM users WHERE email=%s LIMIT 1", (mentor["email"],))
-    if user:
-        uid = user["id"]
+    db_user = fetchone("SELECT id FROM users WHERE email=%s LIMIT 1", (mentor["email"],))
+    if db_user:
+        uid = db_user["id"]
         execute("UPDATE users SET role='mentor' WHERE id=%s", (uid,))
     else:
         uid = execute(
@@ -167,38 +212,57 @@ async def approve_mentor(request: Request, mentor_id: int = Form(...)):
     token  = create_token({"user_id": uid, "purpose": "set_password"}, expires_minutes=1440)
     pw_url = f"{settings.APP_BASE_URL}/set-password?token={token}"
     email_service.send_mentor_approved(mentor["email"], pw_url)
+    audit_svc.log(
+        int(user["sub"]), "mentor.approved",
+        target_table="mentors", target_id=mentor_id,
+        ip=request.client.host or "",
+    )
     return JSONResponse({"ok": True})
 
 
 @router.post("/mentors/reject")
 async def reject_mentor(
     request: Request,
-    mentor_id: int = Form(...),
+    mentor_id:  int = Form(...),
     admin_note: str = Form(""),
 ):
-    if not _admin_required(request):
+    user = _admin_required(request)
+    if not user:
         return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
     mentor = fetchone("SELECT email FROM mentors WHERE id=%s", (mentor_id,))
     if not mentor:
         return JSONResponse({"ok": False, "error": "Not found"})
     execute("UPDATE mentors SET status='rejected', admin_note=%s WHERE id=%s", (admin_note, mentor_id))
     email_service.send_mentor_rejected(mentor["email"], admin_note)
+    audit_svc.log(
+        int(user["sub"]), "mentor.rejected",
+        target_table="mentors", target_id=mentor_id,
+        notes=admin_note[:500],
+        ip=request.client.host or "",
+    )
     return JSONResponse({"ok": True})
 
 
 @router.post("/mentors/request-info")
 async def request_info(
     request: Request,
-    mentor_id: int = Form(...),
+    mentor_id:  int = Form(...),
     admin_note: str = Form(...),
 ):
-    if not _admin_required(request):
+    user = _admin_required(request)
+    if not user:
         return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
     mentor = fetchone("SELECT email FROM mentors WHERE id=%s", (mentor_id,))
     if not mentor:
         return JSONResponse({"ok": False, "error": "Not found"})
     execute("UPDATE mentors SET status='info_requested', admin_note=%s WHERE id=%s", (admin_note, mentor_id))
     email_service.send_mentor_info_request(mentor["email"], admin_note)
+    audit_svc.log(
+        int(user["sub"]), "mentor.info_requested",
+        target_table="mentors", target_id=mentor_id,
+        notes=admin_note[:500],
+        ip=request.client.host or "",
+    )
     return JSONResponse({"ok": True})
 
 
@@ -232,27 +296,41 @@ async def mentor_payout(
     mentor_id: int = Form(...),
     notes:     str = Form(""),
 ):
-    if not _admin_required(request):
+    user = _admin_required(request)
+    if not user:
         return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
     mentor = fetchone("SELECT id, full_name FROM mentors WHERE id=%s", (mentor_id,))
     if not mentor:
         return JSONResponse({"ok": False, "error": "Mentor not found"})
     result = escrow_svc.payout_mentor(mentor_id, notes)
+    if result.get("ok"):
+        audit_svc.log(
+            int(user["sub"]), "mentor.payout",
+            target_table="mentors", target_id=mentor_id,
+            notes=f"amount_paise={result.get('amount_paise')} payout_id={result.get('payout_id')}",
+            ip=request.client.host or "",
+        )
     return JSONResponse(result)
 
 
 # ── Payments ──────────────────────────────────────────────────────────────────
 
 @router.get("/payments", response_class=HTMLResponse)
-async def payments(request: Request):
+async def payments(request: Request, page: int = Query(1)):
     if not _admin_required(request):
         return RedirectResponse("/login")
+    total = int((fetchone("SELECT COUNT(*) AS n FROM payments") or {}).get("n", 0))
+    pg = _page_ctx(page, total)
     rows = fetchall(
-        "SELECT p.*, s.full_name AS student_name FROM payments p LEFT JOIN students s ON p.student_id=s.id ORDER BY p.created_at DESC LIMIT 200"
+        """SELECT p.*, s.full_name AS student_name
+           FROM payments p LEFT JOIN students s ON p.student_id=s.id
+           ORDER BY p.created_at DESC LIMIT %s OFFSET %s""",
+        (pg["limit"], pg["offset"]),
     )
     return templates.TemplateResponse(request, "admin/payments.html", {
         "payments": rows, "section": "payments",
         "plan_catalog": settings.PLAN_CATALOG,
+        **pg,
     })
 
 
@@ -310,19 +388,21 @@ async def deny_request(request: Request, request_id: int = Form(...), admin_note
 # ── Sessions ──────────────────────────────────────────────────────────────────
 
 @router.get("/sessions", response_class=HTMLResponse)
-async def sessions_view(request: Request):
+async def sessions_view(request: Request, page: int = Query(1)):
     if not _admin_required(request):
         return RedirectResponse("/login")
+    total = int((fetchone("SELECT COUNT(*) AS n FROM sessions") or {}).get("n", 0))
+    pg = _page_ctx(page, total)
     rows = fetchall(
         """SELECT ses.*, s.full_name AS student_name, m.full_name AS mentor_name
            FROM sessions ses
            LEFT JOIN students s ON ses.student_id=s.id
            LEFT JOIN mentors m  ON ses.mentor_id=m.id
-           ORDER BY ses.scheduled_at DESC LIMIT 200"""
+           ORDER BY ses.scheduled_at DESC LIMIT %s OFFSET %s""",
+        (pg["limit"], pg["offset"]),
     )
-    students = fetchall("SELECT id, full_name FROM students WHERE status='active' ORDER BY full_name")
-    mentors  = fetchall("SELECT id, full_name FROM mentors WHERE status='approved' ORDER BY full_name")
-    # Escrow summary per session (lightweight)
+    students_list = fetchall("SELECT id, full_name FROM students WHERE status='active' ORDER BY full_name")
+    mentors_list  = fetchall("SELECT id, full_name FROM mentors WHERE status='approved' ORDER BY full_name")
     escrow_map = {}
     escrows = fetchall("SELECT * FROM escrow ORDER BY created_at DESC LIMIT 500")
     for e in escrows:
@@ -330,20 +410,21 @@ async def sessions_view(request: Request):
         if key not in escrow_map:
             escrow_map[key] = e
     return templates.TemplateResponse(request, "admin/sessions.html", {
-        "sessions": rows, "students": students, "mentors": mentors,
+        "sessions": rows, "students": students_list, "mentors": mentors_list,
         "section": "sessions", "escrow_map": escrow_map,
+        **pg,
     })
 
 
 @router.post("/sessions/add")
 async def add_session(
     request: Request,
-    student_id:   int   = Form(...),
-    mentor_id:    int   = Form(...),
-    scheduled_at: str   = Form(...),
-    duration_min: int   = Form(60),
-    status:       str   = Form("scheduled"),
-    notes:        str   = Form(""),
+    student_id:   int = Form(...),
+    mentor_id:    int = Form(...),
+    scheduled_at: str = Form(...),
+    duration_min: int = Form(60),
+    status:       str = Form("scheduled"),
+    notes:        str = Form(""),
 ):
     if not _admin_required(request):
         return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
@@ -366,7 +447,8 @@ async def add_session(
 
 @router.post("/sessions/mark-complete")
 async def mark_complete(request: Request, session_id: int = Form(...), mentor_paid: int = Form(0)):
-    if not _admin_required(request):
+    user = _admin_required(request)
+    if not user:
         return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
     session = fetchone("SELECT * FROM sessions WHERE id=%s", (session_id,))
     if not session:
@@ -383,6 +465,11 @@ async def mark_complete(request: Request, session_id: int = Form(...), mentor_pa
             (session["student_id"],),
         )
     escrow_svc.release_for_session(session_id)
+    audit_svc.log(
+        int(user["sub"]), "session.completed",
+        target_table="sessions", target_id=session_id,
+        ip=request.client.host or "",
+    )
     return JSONResponse({"ok": True})
 
 
@@ -425,9 +512,18 @@ async def reschedule_session(
 
 @router.post("/escrow/force-refund")
 async def force_refund(request: Request, escrow_id: int = Form(...), reason: str = Form("")):
-    if not _admin_required(request):
+    user = _admin_required(request)
+    if not user:
         return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
-    return JSONResponse(escrow_svc.refund(escrow_id, reason or "Admin force refund"))
+    result = escrow_svc.refund(escrow_id, reason or "Admin force refund")
+    if result.get("ok"):
+        audit_svc.log(
+            int(user["sub"]), "escrow.refunded",
+            target_table="escrow", target_id=escrow_id,
+            notes=(reason or "")[:500],
+            ip=request.client.host or "",
+        )
+    return JSONResponse(result)
 
 
 # ── Reviews ───────────────────────────────────────────────────────────────────
@@ -713,3 +809,22 @@ async def invoice(request: Request, payment_id: int):
         return RedirectResponse("/admin/payments")
     user = get_current_user(request)
     return templates.TemplateResponse(request, "invoice.html", {"data": data, "user": user})
+
+
+# ── Audit Trail ───────────────────────────────────────────────────────────────
+
+@router.get("/audit", response_class=HTMLResponse)
+async def audit_log(request: Request, page: int = Query(1)):
+    if not _admin_required(request):
+        return RedirectResponse("/login")
+    total = int((fetchone("SELECT COUNT(*) AS n FROM admin_audit_log") or {}).get("n", 0))
+    pg = _page_ctx(page, total)
+    rows = fetchall(
+        """SELECT a.*, u.email AS admin_email
+           FROM admin_audit_log a LEFT JOIN users u ON a.admin_user_id=u.id
+           ORDER BY a.created_at DESC LIMIT %s OFFSET %s""",
+        (pg["limit"], pg["offset"]),
+    )
+    return templates.TemplateResponse(request, "admin/audit.html", {
+        "logs": rows, "section": "audit", **pg,
+    })

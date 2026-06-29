@@ -1,0 +1,69 @@
+{% extends "admin/layout.html" %}
+{% block title %}Audit Trail — Admin{% endblock %}
+{% block page_title %}Audit Trail{% endblock %}
+
+{% block body %}
+<div class="enp-card">
+  <div class="enp-card__body" style="padding:0;overflow-x:auto">
+    <table class="enp-table" style="min-width:780px">
+      <thead>
+        <tr>
+          <th>Time (UTC)</th>
+          <th>Admin</th>
+          <th>Action</th>
+          <th>Target</th>
+          <th>Notes</th>
+          <th>IP</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td style="font-size:.82rem;color:var(--enp-muted);white-space:nowrap">
+            {{ log.created_at.strftime('%d %b %Y %H:%M') if log.created_at else '—' }}
+          </td>
+          <td style="font-size:.85rem">{{ log.admin_email or log.admin_user_id }}</td>
+          <td>
+            <span class="enp-badge
+              {% if 'approved' in log.action or 'activated' in log.action or 'completed' in log.action or 'payout' in log.action %}enp-badge--success
+              {% elif 'rejected' in log.action or 'refunded' in log.action %}enp-badge--error
+              {% elif 'requested' in log.action %}enp-badge--warn
+              {% else %}enp-badge--info{% endif %}">
+              {{ log.action }}
+            </span>
+          </td>
+          <td style="font-size:.82rem;color:var(--enp-muted)">
+            {% if log.target_table and log.target_id %}
+              {{ log.target_table }}#{{ log.target_id }}
+            {% elif log.target_table %}
+              {{ log.target_table }}
+            {% else %}—{% endif %}
+          </td>
+          <td style="font-size:.82rem;color:var(--enp-muted);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+              title="{{ log.notes or '' }}">
+            {{ log.notes or '—' }}
+          </td>
+          <td style="font-size:.8rem;color:var(--enp-muted)">{{ log.ip or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" style="text-align:center;color:var(--enp-muted);padding:2rem">No audit entries yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if total_pages > 1 %}
+<div style="display:flex;gap:.5rem;align-items:center;justify-content:center;margin-top:1.25rem">
+  {% if page > 1 %}
+  <a href="?page={{ page - 1 }}" class="enp-btn enp-btn--ghost enp-btn--sm">← Prev</a>
+  {% endif %}
+  <span style="color:var(--enp-muted);font-size:.85rem">Page {{ page }} of {{ total_pages }} ({{ total_count }} total)</span>
+  {% if page < total_pages %}
+  <a href="?page={{ page + 1 }}" class="enp-btn enp-btn--ghost enp-btn--sm">Next →</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

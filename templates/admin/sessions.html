@@ -52,6 +52,18 @@
   </div>
 </div>
 
+{% if total_pages > 1 %}
+<div style="display:flex;gap:.5rem;align-items:center;justify-content:center;margin-top:1.25rem">
+  {% if page > 1 %}
+  <a href="?page={{ page - 1 }}" class="enp-btn enp-btn--ghost enp-btn--sm">← Prev</a>
+  {% endif %}
+  <span style="color:var(--enp-muted);font-size:.85rem">Page {{ page }} of {{ total_pages }} ({{ total_count }} total)</span>
+  {% if page < total_pages %}
+  <a href="?page={{ page + 1 }}" class="enp-btn enp-btn--ghost enp-btn--sm">Next →</a>
+  {% endif %}
+</div>
+{% endif %}
+
 <!-- Add Session Modal -->
 <div id="add-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center">
   <div style="background:var(--enp-surface);border:1px solid var(--enp-border);border-radius:16px;padding:2rem;max-width:480px;width:90%">
